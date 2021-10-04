@@ -160,6 +160,8 @@ source_set("gpgmm_sources") {
   if (gpgmm_enable_d3d12) {
     libs += [ "dxguid.lib" ]
     sources += [
+      "d3d12/BufferAllocatorD3D12.cpp",
+      "d3d12/BufferAllocatorD3D12.h",
       "d3d12/FenceD3D12.cpp",
       "d3d12/FenceD3D12.h",
       "d3d12/HeapD3D12.cpp",

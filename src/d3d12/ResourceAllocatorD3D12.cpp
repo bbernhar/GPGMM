@@ -21,6 +21,7 @@
 #include "src/LIFOPooledMemoryAllocator.h"
 #include "src/MemoryAllocatorStack.h"
 #include "src/VirtualBuddyMemoryAllocator.h"
+#include "src/d3d12/BufferAllocatorD3D12.h"
 #include "src/d3d12/HeapD3D12.h"
 #include "src/d3d12/ResidencyManagerD3D12.h"
 #include "src/d3d12/ResourceAllocationD3D12.h"
@@ -197,6 +198,21 @@ namespace gpgmm { namespace d3d12 {
 
             return ResourceHeapKind::InvalidEnum;
         }
+
+        D3D12_RESOURCE_STATES GetInitialResourceState(D3D12_HEAP_TYPE heapType) {
+            switch (heapType) {
+                case D3D12_HEAP_TYPE_DEFAULT:
+                case D3D12_HEAP_TYPE_UPLOAD:
+                    return D3D12_RESOURCE_STATE_GENERIC_READ;
+                case D3D12_HEAP_TYPE_READBACK:
+                    return D3D12_RESOURCE_STATE_COPY_DEST;
+                case D3D12_HEAP_TYPE_CUSTOM:
+                    // TODO
+                default:
+                    UNREACHABLE();
+            }
+        }
+
     }  // namespace
 
     ResourceAllocator::ResourceAllocator(const ALLOCATOR_DESC& descriptor)
@@ -226,38 +242,59 @@ namespace gpgmm { namespace d3d12 {
             const ResourceHeapKind resourceHeapKind = static_cast<ResourceHeapKind>(i);
 
             const D3D12_HEAP_FLAGS heapFlags = GetHeapFlags(resourceHeapKind);
+            const D3D12_HEAP_TYPE heapType = GetHeapType(resourceHeapKind);
 
-            std::unique_ptr<MemoryAllocatorStack> stack = std::make_unique<MemoryAllocatorStack>();
+            {
+                std::unique_ptr<MemoryAllocatorStack> stack =
+                    std::make_unique<MemoryAllocatorStack>();
 
-            // Standalone heap allocator.
-            MemoryAllocator* heapAllocator =
-                stack->PushAllocator(std::make_unique<ResourceHeapAllocator>(
-                    this, GetHeapType(resourceHeapKind), heapFlags,
-                    GetPreferredMemorySegmentGroup(mDevice.Get(), mIsUMA,
-                                                   GetHeapType(resourceHeapKind)),
-                    minResourceHeapSize));
+                // Standalone heap allocator.
+                MemoryAllocator* heapAllocator =
+                    stack->PushAllocator(std::make_unique<ResourceHeapAllocator>(
+                        this, GetHeapType(resourceHeapKind), heapFlags,
+                        GetPreferredMemorySegmentGroup(mDevice.Get(), mIsUMA,
+                                                       GetHeapType(resourceHeapKind)),
+                        minResourceHeapSize));
 
-            // Placed resource sub-allocator.
-            MemoryAllocator* subAllocator =
+                // Placed resource sub-allocator.
+                MemoryAllocator* subAllocator =
+                    stack->PushAllocator(std::make_unique<VirtualBuddyMemoryAllocator>(
+                        mMaxResourceHeapSize, minResourceHeapSize, GetHeapAlignment(heapFlags),
+                        heapAllocator));
+
+                // Pooled standalone heap allocator.
+                MemoryAllocator* pooledHeapAllocator = stack->PushAllocator(
+                    std::make_unique<LIFOPooledMemoryAllocator>(heapAllocator));
+
+                // Pooled placed resource sub-allocator.
+                MemoryAllocator* pooledSubAllocator =
+                    stack->PushAllocator(std::make_unique<VirtualBuddyMemoryAllocator>(
+                        mMaxResourceHeapSize, minResourceHeapSize, GetHeapAlignment(heapFlags),
+                        pooledHeapAllocator));
+
+                // Conditional sub-allocator that uses the pooled or non-pooled sub-allocator.
+                stack->PushAllocator(std::make_unique<ConditionalMemoryAllocator>(
+                    pooledSubAllocator, subAllocator, mMaxResourceSizeForPooling));
+
+                mSubAllocators[i] = std::move(stack);
+            }
+
+            {
+                std::unique_ptr<MemoryAllocatorStack> stack =
+                    std::make_unique<MemoryAllocatorStack>();
+
+                MemoryAllocator* bufferAllocator =
+                    stack->PushAllocator(std::make_unique<BufferAllocator>(
+                        this, heapType, D3D12_RESOURCE_FLAG_NONE, GetInitialResourceState(heapType),
+                        /*resourceSize*/ D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
+                        /*resourceAlignment*/ 0));
+
                 stack->PushAllocator(std::make_unique<VirtualBuddyMemoryAllocator>(
-                    mMaxResourceHeapSize, minResourceHeapSize, GetHeapAlignment(heapFlags),
-                    heapAllocator));
+                    mMaxResourceHeapSize, bufferAllocator->GetMemorySize(),
+                    bufferAllocator->GetMemoryAlignment(), bufferAllocator));
 
-            // Pooled standalone heap allocator.
-            MemoryAllocator* pooledHeapAllocator =
-                stack->PushAllocator(std::make_unique<LIFOPooledMemoryAllocator>(heapAllocator));
-
-            // Pooled placed resource sub-allocator.
-            MemoryAllocator* pooledSubAllocator =
-                stack->PushAllocator(std::make_unique<VirtualBuddyMemoryAllocator>(
-                    mMaxResourceHeapSize, minResourceHeapSize, GetHeapAlignment(heapFlags),
-                    pooledHeapAllocator));
-
-            // Conditional sub-allocator that uses the pooled or non-pooled sub-allocator.
-            stack->PushAllocator(std::make_unique<ConditionalMemoryAllocator>(
-                pooledSubAllocator, subAllocator, mMaxResourceSizeForPooling));
-
-            mSubAllocators[i] = std::move(stack);
+                mBufferAllocators[i] = std::move(stack);
+            }
         }
     }
 
@@ -290,36 +327,57 @@ namespace gpgmm { namespace d3d12 {
             GetResourceHeapKind(newResourceDesc.Dimension, allocationDescriptor.HeapType,
                                 newResourceDesc.Flags, mResourceHeapTier);
 
-        // TODO(crbug.com/dawn/849): Conditionally disable sub-allocation.
-        // For very large resources, there is no benefit to suballocate.
-        // For very small resources, it is inefficent to suballocate given the min. heap
-        // size could be much larger then the resource allocation.
-        // Attempt to satisfy the request using sub-allocation (placed resource in a heap).
-        HRESULT hr = E_UNEXPECTED;
-        std::unique_ptr<MemoryAllocation> subAllocation;
-        if (!mIsAlwaysCommitted) {
+        if ((allocationDescriptor.Flags & ALLOCATION_FLAG_SUBALLOCATE_WITHIN_RESOURCE) &&
+            resourceInfo.Alignment > resourceDescriptor.Width &&
+            resourceDescriptor.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER &&
+            GetInitialResourceState(GetHeapType(resourceHeapKind)) != initialUsage) {
             MemoryAllocator* subAllocator =
-                mSubAllocators[static_cast<size_t>(resourceHeapKind)].get();
-            subAllocation =
-                subAllocator->AllocateMemory(resourceInfo.SizeInBytes, resourceInfo.Alignment);
+                mBufferAllocators[static_cast<size_t>(resourceHeapKind)].get();
+
+            const uint64_t resourceAlignment =
+                (resourceDescriptor.Alignment == 0) ? 1 : resourceDescriptor.Alignment;
+
+            std::unique_ptr<MemoryAllocation> subAllocation =
+                subAllocator->AllocateMemory(resourceDescriptor.Width, resourceAlignment);
+
             if (subAllocation != nullptr) {
-                hr = CreatePlacedResource(*subAllocation, resourceInfo, &newResourceDesc,
-                                          clearValue, initialUsage, resourceAllocation);
+                ComPtr<ID3D12Resource> committedResource;
+                Heap* heap = static_cast<Heap*>(subAllocation->GetMemory());
+                HRESULT hr =
+                    heap->GetD3D12Pageable()->QueryInterface(committedResource.GetAddressOf());
                 if (FAILED(hr)) {
                     subAllocator->DeallocateMemory(subAllocation.get());
                     subAllocation = nullptr;
                 }
+
+                *resourceAllocation =
+                    new ResourceAllocation{mResidencyManager.get(),      subAllocator,
+                                           subAllocation->GetInfo(),     subAllocation->GetOffset(),
+                                           std::move(committedResource), heap};
+                return hr;
             }
         }
 
-        // Fall-back to direct allocation if sub-allocation fails.
-        if (subAllocation == nullptr) {
-            hr = CreateCommittedResource(
-                allocationDescriptor.HeapType, GetHeapFlags(resourceHeapKind), resourceInfo,
-                &newResourceDesc, clearValue, initialUsage, resourceAllocation);
+        if (!mIsAlwaysCommitted) {
+            MemoryAllocator* subAllocator =
+                mSubAllocators[static_cast<size_t>(resourceHeapKind)].get();
+            std::unique_ptr<MemoryAllocation> subAllocation =
+                subAllocator->AllocateMemory(resourceInfo.SizeInBytes, resourceInfo.Alignment);
+            if (subAllocation != nullptr) {
+                HRESULT hr = CreatePlacedResource(*subAllocation, resourceInfo, &newResourceDesc,
+                                                  clearValue, initialUsage, resourceAllocation);
+                if (FAILED(hr)) {
+                    subAllocator->DeallocateMemory(subAllocation.get());
+                    subAllocation = nullptr;
+                }
+
+                return hr;
+            }
         }
 
-        return hr;
+        return CreateCommittedResource(
+            allocationDescriptor.HeapType, GetHeapFlags(resourceHeapKind), resourceInfo,
+            &newResourceDesc, clearValue, initialUsage, resourceAllocation);
     }
 
     HRESULT ResourceAllocator::CreateResource(ComPtr<ID3D12Resource> resource,

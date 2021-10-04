@@ -28,6 +28,7 @@ struct IDXGIAdapter3;
 
 namespace gpgmm { namespace d3d12 {
 
+    class BufferAllocator;
     class Heap;
     class ResidencyManager;
     class ResourceAllocation;
@@ -99,6 +100,15 @@ namespace gpgmm { namespace d3d12 {
         // Disables all flags. Enabled by default.
         ALLOCATION_FLAG_NONE = 0x0,
 
+        // Sub-allocates within the same resource down to a single byte. This is only useful
+        // for constant buffers (index and vertex buffers) which will be used as read-only
+        // after creation as the resource can only be in one state at a time. When this
+        // flag is not used, the minimum allocation size is always equal to a page (or 64KB)
+        // so this flag saves memory for tiny allocations. It is undefined behavior to use
+        // suballocations within the same resource with multiple queues as this is because
+        // D3D has no guarentees access will always be coherent.
+        ALLOCATION_FLAG_SUBALLOCATE_WITHIN_RESOURCE,
+
     } ALLOCATION_FLAGS;
 
     struct ALLOCATION_DESC {
@@ -151,6 +161,7 @@ namespace gpgmm { namespace d3d12 {
         ResidencyManager* GetResidencyManager();
 
       private:
+        friend BufferAllocator;
         friend ResourceHeapAllocator;
         friend ResourceAllocation;
 
@@ -188,6 +199,8 @@ namespace gpgmm { namespace d3d12 {
         uint64_t mMaxResourceHeapSize;
 
         std::array<std::unique_ptr<MemoryAllocator>, ResourceHeapKind::EnumCount> mSubAllocators;
+
+        std::array<std::unique_ptr<MemoryAllocator>, ResourceHeapKind::EnumCount> mBufferAllocators;
 
         std::unique_ptr<ResidencyManager> mResidencyManager;
     };
