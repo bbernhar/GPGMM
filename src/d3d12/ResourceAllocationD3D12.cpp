@@ -16,6 +16,7 @@
 #include "src/d3d12/ResourceAllocationD3D12.h"
 
 #include "src/MemoryAllocator.h"
+#include "src/TraceEvent.h"
 #include "src/d3d12/HeapD3D12.h"
 #include "src/d3d12/ResidencyManagerD3D12.h"
 #include "src/d3d12/ResourceAllocatorD3D12.h"
@@ -32,6 +33,7 @@ namespace gpgmm { namespace d3d12 {
         : MemoryAllocation(memoryAllocator, info, offset, heap),
           mResidencyManager(residencyManager),
           mResource(std::move(resource)) {
+        TRACE_EVENT_OBJECT_CREATED_WITH_ID("ResourceAllocation", this);
     }
 
     ResourceAllocation::ResourceAllocation(ResidencyManager* residencyManager,
@@ -44,6 +46,11 @@ namespace gpgmm { namespace d3d12 {
           mResourceAllocator(resourceAllocator),
           mResidencyManager(residencyManager),
           mResource(std::move(resource)) {
+        TRACE_EVENT_OBJECT_CREATED_WITH_ID("ResourceAllocation", this);
+    }
+
+    ResourceAllocation::~ResourceAllocation() {
+        TRACE_EVENT_OBJECT_DELETED_WITH_ID("ResourceAllocation", this);
     }
 
     void ResourceAllocation::ReleaseThis() {

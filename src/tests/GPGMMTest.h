@@ -17,12 +17,12 @@
 
 #include "gtest/gtest.h"
 
-class GPGMMTest : public testing::Test {
+class GPGMMTestBase {
   protected:
-    ~GPGMMTest() override;
+    virtual ~GPGMMTestBase();
 
-    void SetUp() override;
-    void TearDown() override;
+    void SetUp();
+    void TearDown();
 };
 
 void InitGPGMMEnd2EndTestEnvironment();
@@ -31,6 +31,9 @@ class GPGMMTestEnvironment : public testing::Environment {
   public:
     explicit GPGMMTestEnvironment() {
     }
+
+    static void SetEnvironment(GPGMMTestEnvironment* env);
+
     void SetUp() override;
 };
 

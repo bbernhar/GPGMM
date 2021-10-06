@@ -14,26 +14,17 @@
 
 #include "src/tests/GPGMMTest.h"
 
-static GPGMMTestEnvironment* gTestEnv = nullptr;
+#include <memory>
 
-void InitGPGMMEnd2EndTestEnvironment() {
-    gTestEnv = new GPGMMTestEnvironment();
-    testing::AddGlobalTestEnvironment(gTestEnv);
-}
+namespace gpgmm { namespace d3d12 {
+    class ResourceAllocator;
+}}  // namespace gpgmm::d3d12
 
-void GPGMMTestBase::SetUp() {
-}
+class D3D12GPGMMTest : public GPGMMTestBase {
+  public:
+    void SetUp();
+    void TearDown();
 
-GPGMMTestBase::~GPGMMTestBase() {
-}
-
-void GPGMMTestBase::TearDown() {
-}
-
-// static
-void GPGMMTestEnvironment::SetEnvironment(GPGMMTestEnvironment* env) {
-    gTestEnv = env;
-}
-
-void GPGMMTestEnvironment::SetUp() {
-}
+  protected:
+    std::unique_ptr<gpgmm::d3d12::ResourceAllocator> mResourceAllocator;
+};

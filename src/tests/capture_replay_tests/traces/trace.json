@@ -1,0 +1,365 @@
+{
+  "traceEvents": [
+    {},
+    {
+      "name": "Heap",
+      "cat": "0",
+      "ph": "N",
+      "id": "0x173dedc9400",
+      "tid": 6460,
+      "ts": 0,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "Heap",
+      "cat": "0",
+      "ph": "N",
+      "id": "0x173dedc8200",
+      "tid": 6460,
+      "ts": 871,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "CreateResource",
+      "cat": "0",
+      "ph": "i",
+      "tid": 6460,
+      "ts": 1264,
+      "pid": "GPGMM",
+      "args": {
+        "allocationDescriptor": {
+          "Flags": 0,
+          "HeapType": 1
+        },
+        "resourceDescriptor": {
+          "Dimension": 1,
+          "Alignment": 0,
+          "Width": 4,
+          "Height": 1,
+          "DepthOrArraySize": 1,
+          "MipLevels": 1,
+          "Format": 0,
+          "Layout": 1,
+          "SampleDesc": {
+            "Count": 1,
+            "Quality": 0
+          },
+          "Flags": 0
+        },
+        "initialUsage": 0,
+        "clearValue": {}
+      }
+    },
+    {
+      "name": "AllocateMemory",
+      "cat": "0",
+      "ph": "B",
+      "tid": 6460,
+      "ts": 1269,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "Heap",
+      "cat": "0",
+      "ph": "N",
+      "id": "0x173def19710",
+      "tid": 6460,
+      "ts": 2157,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "AllocateMemory",
+      "cat": "0",
+      "ph": "E",
+      "tid": 6460,
+      "ts": 2163,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "ResourceAllocation",
+      "cat": "0",
+      "ph": "N",
+      "id": "0x173dea96890",
+      "tid": 6460,
+      "ts": 2279,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "CreateResource",
+      "cat": "0",
+      "ph": "i",
+      "tid": 6460,
+      "ts": 2436,
+      "pid": "GPGMM",
+      "args": {
+        "allocationDescriptor": {
+          "Flags": 0,
+          "HeapType": 2
+        },
+        "resourceDescriptor": {
+          "Dimension": 1,
+          "Alignment": 0,
+          "Width": 4194304,
+          "Height": 1,
+          "DepthOrArraySize": 1,
+          "MipLevels": 1,
+          "Format": 0,
+          "Layout": 1,
+          "SampleDesc": {
+            "Count": 1,
+            "Quality": 0
+          },
+          "Flags": 0
+        },
+        "initialUsage": 2755,
+        "clearValue": {}
+      }
+    },
+    {
+      "name": "AllocateMemory",
+      "cat": "0",
+      "ph": "B",
+      "tid": 6460,
+      "ts": 2439,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "Heap",
+      "cat": "0",
+      "ph": "N",
+      "id": "0x173def18610",
+      "tid": 6460,
+      "ts": 6040,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "AllocateMemory",
+      "cat": "0",
+      "ph": "E",
+      "tid": 6460,
+      "ts": 6043,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "ResourceAllocation",
+      "cat": "0",
+      "ph": "N",
+      "id": "0x173dea97290",
+      "tid": 6460,
+      "ts": 6077,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "CreateResource",
+      "cat": "0",
+      "ph": "i",
+      "tid": 6460,
+      "ts": 7536,
+      "pid": "GPGMM",
+      "args": {
+        "allocationDescriptor": {
+          "Flags": 0,
+          "HeapType": 3
+        },
+        "resourceDescriptor": {
+          "Dimension": 1,
+          "Alignment": 0,
+          "Width": 4,
+          "Height": 1,
+          "DepthOrArraySize": 1,
+          "MipLevels": 1,
+          "Format": 0,
+          "Layout": 1,
+          "SampleDesc": {
+            "Count": 1,
+            "Quality": 0
+          },
+          "Flags": 0
+        },
+        "initialUsage": 1024,
+        "clearValue": {}
+      }
+    },
+    {
+      "name": "AllocateMemory",
+      "cat": "0",
+      "ph": "B",
+      "tid": 6460,
+      "ts": 7540,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "Heap",
+      "cat": "0",
+      "ph": "N",
+      "id": "0x173def1b610",
+      "tid": 6460,
+      "ts": 8325,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "AllocateMemory",
+      "cat": "0",
+      "ph": "E",
+      "tid": 6460,
+      "ts": 8327,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "ResourceAllocation",
+      "cat": "0",
+      "ph": "N",
+      "id": "0x173dea978d0",
+      "tid": 6460,
+      "ts": 8352,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "DeallocateMemory",
+      "cat": "0",
+      "ph": "O",
+      "id": "0x173dea96890",
+      "tid": 6460,
+      "ts": 10730,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "DeallocateMemory",
+      "cat": "0",
+      "ph": "B",
+      "tid": 6460,
+      "ts": 10731,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "Heap",
+      "cat": "0",
+      "ph": "D",
+      "id": "0x173def19710",
+      "tid": 6460,
+      "ts": 10732,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "DeallocateMemory",
+      "cat": "0",
+      "ph": "E",
+      "tid": 6460,
+      "ts": 10738,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "ResourceAllocation",
+      "cat": "0",
+      "ph": "D",
+      "id": "0x173dea96890",
+      "tid": 6460,
+      "ts": 10947,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "DeallocateMemory",
+      "cat": "0",
+      "ph": "O",
+      "id": "0x173dea978d0",
+      "tid": 6460,
+      "ts": 11008,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "DeallocateMemory",
+      "cat": "0",
+      "ph": "B",
+      "tid": 6460,
+      "ts": 11009,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "Heap",
+      "cat": "0",
+      "ph": "D",
+      "id": "0x173def1b610",
+      "tid": 6460,
+      "ts": 11010,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "DeallocateMemory",
+      "cat": "0",
+      "ph": "E",
+      "tid": 6460,
+      "ts": 11016,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "ResourceAllocation",
+      "cat": "0",
+      "ph": "D",
+      "id": "0x173dea978d0",
+      "tid": 6460,
+      "ts": 11172,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "DeallocateMemory",
+      "cat": "0",
+      "ph": "O",
+      "id": "0x173dea97290",
+      "tid": 6460,
+      "ts": 11212,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "DeallocateMemory",
+      "cat": "0",
+      "ph": "B",
+      "tid": 6460,
+      "ts": 11212,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "Heap",
+      "cat": "0",
+      "ph": "D",
+      "id": "0x173def18610",
+      "tid": 6460,
+      "ts": 11214,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "DeallocateMemory",
+      "cat": "0",
+      "ph": "E",
+      "tid": 6460,
+      "ts": 11218,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "ResourceAllocation",
+      "cat": "0",
+      "ph": "D",
+      "id": "0x173dea97290",
+      "tid": 6460,
+      "ts": 11340,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "Heap",
+      "cat": "0",
+      "ph": "D",
+      "id": "0x173dedc9400",
+      "tid": 6460,
+      "ts": 11355,
+      "pid": "GPGMM"
+    },
+    {
+      "name": "Heap",
+      "cat": "0",
+      "ph": "D",
+      "id": "0x173dedc8200",
+      "tid": 6460,
+      "ts": 11369,
+      "pid": "GPGMM"
+    }
+  ]
+}

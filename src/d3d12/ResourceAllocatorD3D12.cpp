@@ -20,8 +20,10 @@
 #include "src/ConditionalMemoryAllocator.h"
 #include "src/LIFOPooledMemoryAllocator.h"
 #include "src/MemoryAllocatorStack.h"
+#include "src/TraceEvent.h"
 #include "src/VirtualBuddyMemoryAllocator.h"
 #include "src/d3d12/HeapD3D12.h"
+#include "src/d3d12/JSONSerializerD3D12.h"
 #include "src/d3d12/ResidencyManagerD3D12.h"
 #include "src/d3d12/ResourceAllocationD3D12.h"
 #include "src/d3d12/ResourceHeapAllocatorD3D12.h"
@@ -221,6 +223,7 @@ namespace gpgmm { namespace d3d12 {
 
         mMaxResourceHeapSize = (descriptor.MaxResourceHeapSize > 0) ? descriptor.MaxResourceHeapSize
                                                                     : kDefaultMaxHeapSize;
+        SetupEventTracer(descriptor.RecordOptions);
 
         for (uint32_t i = 0; i < ResourceHeapKind::EnumCount; i++) {
             const ResourceHeapKind resourceHeapKind = static_cast<ResourceHeapKind>(i);
@@ -266,6 +269,25 @@ namespace gpgmm { namespace d3d12 {
             ASSERT(allocator != nullptr);
             allocator->ReleaseMemory();
         }
+
+        ShutdownEventTracer();
+    }
+
+    void ResourceAllocator::SetupEventTracer(const ALLOCATOR_RECORD_OPTIONS& recordOptions) {
+        bool enableEventTracer = recordOptions.flags & ALLOCATOR_RECORD_EVENT_TRACE;
+
+        // Users may choose not to enable recording (off by default).
+        // However, for debugging/profiling purposes, this option can be
+        // forced-enabled via a compile-time flag.
+#ifdef GPGMM_ALWAYS_RECORD_EVENT_TRACE
+        enableEventTracer = true;
+#endif
+
+        if (!enableEventTracer) {
+            return;
+        }
+
+        StartupEventTracer(recordOptions.TraceFile);
     }
 
     HRESULT ResourceAllocator::CreateResource(const ALLOCATION_DESC& allocationDescriptor,
@@ -273,6 +295,11 @@ namespace gpgmm { namespace d3d12 {
                                               D3D12_RESOURCE_STATES initialUsage,
                                               const D3D12_CLEAR_VALUE* clearValue,
                                               ResourceAllocation** resourceAllocation) {
+        const CREATE_RESOURCE_DESC desc = {allocationDescriptor, resourceDescriptor, initialUsage,
+                                           clearValue};
+
+        GPGMM_API_TRACE_FUNCTION_CALL(JSONSerializer::SerializeToJSON(desc));
+
         // If d3d tells us the resource size is invalid, treat the error as OOM.
         // Otherwise, creating a very large resource could overflow the allocator.
         D3D12_RESOURCE_DESC newResourceDesc = resourceDescriptor;
@@ -322,6 +349,8 @@ namespace gpgmm { namespace d3d12 {
         }
 
         D3D12_RESOURCE_DESC desc = committedResource->GetDesc();
+        GPGMM_API_TRACE_FUNCTION_CALL(JSONSerializer::SerializeToJSON(desc));
+
         const D3D12_RESOURCE_ALLOCATION_INFO resourceInfo =
             GetResourceAllocationInfo(mDevice.Get(), desc);
 
