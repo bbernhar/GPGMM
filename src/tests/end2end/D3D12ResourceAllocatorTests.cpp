@@ -52,6 +52,22 @@ class D3D12ResourceAllocatorTests : public D3D12TestBase, public ::testing::Test
         return resourceDesc;
     }
 
+    static D3D12_RESOURCE_DESC CreateBasicTextureDesc(uint64_t width, uint64_t height) {
+        D3D12_RESOURCE_DESC resourceDesc;
+        resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        resourceDesc.Alignment = 0;
+        resourceDesc.Width = width;
+        resourceDesc.Height = height;
+        resourceDesc.DepthOrArraySize = 1;
+        resourceDesc.MipLevels = 1;
+        resourceDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        resourceDesc.SampleDesc.Count = 1;
+        resourceDesc.SampleDesc.Quality = 0;
+        resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+        resourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+        return resourceDesc;
+    }
+
     ComPtr<ResourceAllocator> mDefaultAllocator;
 };
 
@@ -687,5 +703,34 @@ TEST_F(D3D12ResourceAllocatorTests, CreateBufferQueryInfo) {
         EXPECT_EQ(stats.UsedResourceHeapUsage, 64u * 1024u);
         EXPECT_EQ(stats.UsedBlockCount, 2u);
         EXPECT_EQ(stats.UsedBlockUsage, kBufferSize * 2);
+    }
+}
+
+TEST_F(D3D12ResourceAllocatorTests, CreateTexturePooled) {
+    // FIX max size to pool
+
+    ALLOCATION_DESC standaloneAllocationDesc = {};
+    standaloneAllocationDesc.Flags = ALLOCATION_FLAG_NEVER_SUBALLOCATE_MEMORY;
+
+    {
+        ComPtr<ResourceAllocation> firstAllocation;
+        ASSERT_SUCCEEDED(mDefaultAllocator->CreateResource(
+            standaloneAllocationDesc, CreateBasicTextureDesc(1, 1),
+            D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, &firstAllocation));
+        ASSERT_NE(firstAllocation, nullptr);
+        EXPECT_EQ(firstAllocation->GetMethod(), gpgmm::AllocationMethod::kStandalone);
+    }
+
+    {
+        ALLOCATION_DESC reusePoolOnlyDesc = standaloneAllocationDesc;
+        reusePoolOnlyDesc.Flags = static_cast<ALLOCATION_FLAGS>(
+            standaloneAllocationDesc.Flags | ALLOCATION_FLAG_NEVER_ALLOCATE_MEMORY);
+
+        ComPtr<ResourceAllocation> secondAllocation;
+        ASSERT_SUCCEEDED(mDefaultAllocator->CreateResource(
+            reusePoolOnlyDesc, CreateBasicTextureDesc(1, 1), D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr, &secondAllocation));
+        ASSERT_NE(secondAllocation, nullptr);
+        EXPECT_EQ(secondAllocation->GetMethod(), gpgmm::AllocationMethod::kStandalone);
     }
 }

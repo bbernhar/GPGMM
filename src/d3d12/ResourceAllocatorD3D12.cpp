@@ -336,7 +336,8 @@ namespace gpgmm { namespace d3d12 {
           mResourceHeapTier(descriptor.ResourceHeapTier),
           mIsAlwaysCommitted(descriptor.Flags & ALLOCATOR_FLAG_ALWAYS_COMMITED),
           mIsAlwaysInBudget(descriptor.Flags & ALLOCATOR_FLAG_ALWAYS_IN_BUDGET),
-          mMaxResourceHeapSize(descriptor.MaxResourceHeapSize) {
+          mMaxResourceHeapSize(descriptor.MaxResourceHeapSize),
+          mPreferredResourceHeapSize(descriptor.PreferredResourceHeapSize) {
         LogEvent("ResourceAllocator", descriptor);
         TRACE_EVENT_NEW_OBJECT("ResourceAllocator", this);
 
@@ -363,8 +364,8 @@ namespace gpgmm { namespace d3d12 {
 
             std::unique_ptr<BuddyMemoryAllocator> resourceSubAllocator =
                 std::make_unique<BuddyMemoryAllocator>(mMaxResourceHeapSize,
-                                                       descriptor.PreferredResourceHeapSize,
-                                                       heapAlignment, resourceHeapAllocator.get());
+                                                       mPreferredResourceHeapSize, heapAlignment,
+                                                       resourceHeapAllocator.get());
 
             mResourceSubAllocatorOfType[resourceHeapTypeIndex] = std::move(resourceSubAllocator);
             mResourceHeapAllocatorOfType[resourceHeapTypeIndex] = std::move(resourceHeapAllocator);
@@ -510,7 +511,7 @@ namespace gpgmm { namespace d3d12 {
                     ComPtr<ID3D12Resource> placedResource;
                     Heap* resourceHeap = static_cast<Heap*>(subAllocation.GetMemory());
                     ReturnIfFailed(CreatePlacedResource(resourceHeap, subAllocation.GetOffset(),
-                                                        resourceInfo, &newResourceDesc, clearValue,
+                                                        &newResourceDesc, clearValue,
                                                         initialResourceState, &placedResource));
 
                     *resourceAllocationOut = new ResourceAllocation{
@@ -538,9 +539,9 @@ namespace gpgmm { namespace d3d12 {
         }
 
         // Attempt to create a resource allocation by placing a single resource fully contained
-        // in a resource heap. This strategy is slightly better then creating a standalone committed
-        // resource because a resource heap will not be reallocated by the OS until Trim() is
-        // called.
+        // in a resource heap. This strategy is slightly better then creating a committed
+        // resource because a placed resource's heap will not be reallocated by the OS until Trim()
+        // is called.
         // The time and space complexity is determined by the allocator type.
         if (!mIsAlwaysCommitted) {
             allocator = mResourceHeapAllocatorOfType[static_cast<size_t>(resourceHeapType)].get();
@@ -549,30 +550,37 @@ namespace gpgmm { namespace d3d12 {
             // fragmenting the OS VidMM.
             const D3D12_HEAP_FLAGS heapFlags = GetHeapFlags(resourceHeapType);
             const uint64_t heapAlignment = GetHeapAlignment(heapFlags);
-            const uint64_t heapSize = resourceInfo.SizeInBytes;
 
-            ReturnIfSucceeded(TryAllocateResource(
-                allocator, heapSize, heapAlignment, neverAllocate,
-                [&](const auto& allocation) -> HRESULT {
-                    ComPtr<ID3D12Resource> placedResource;
-                    Heap* resourceHeap = static_cast<Heap*>(allocation.GetMemory());
-                    ReturnIfFailed(CreatePlacedResource(resourceHeap, allocation.GetOffset(),
-                                                        resourceInfo, &newResourceDesc, clearValue,
-                                                        initialResourceState, &placedResource));
+            // Placing a resource using an alignment not equal to the resource heap means the fully
+            // contained resource could consume extra memory (4KB vs 64KB) when allocating small
+            // textures. It may be the case the sub-allocator could not be used with such alignment
+            // (ex. non power-of-two size), so we also check against the preferred resource heap
+            // size to see if this waste size is acceptable.
+            if (resourceInfo.Alignment == heapAlignment ||
+                resourceInfo.SizeInBytes < mPreferredResourceHeapSize) {
+                ReturnIfSucceeded(TryAllocateResource(
+                    allocator, resourceInfo.SizeInBytes, heapAlignment, neverAllocate,
+                    [&](const auto& allocation) -> HRESULT {
+                        ComPtr<ID3D12Resource> placedResource;
+                        Heap* resourceHeap = static_cast<Heap*>(allocation.GetMemory());
+                        ReturnIfFailed(CreatePlacedResource(resourceHeap, allocation.GetOffset(),
+                                                            &newResourceDesc, clearValue,
+                                                            initialResourceState, &placedResource));
 
-                    *resourceAllocationOut =
-                        new ResourceAllocation{mResidencyManager.Get(), allocation.GetAllocator(),
-                                               std::move(placedResource), resourceHeap};
+                        *resourceAllocationOut = new ResourceAllocation{
+                            mResidencyManager.Get(), allocation.GetAllocator(),
+                            std::move(placedResource), resourceHeap};
 
-                    if (allocation.GetSize() > heapSize) {
-                        LogMessageEvent(
-                            LogSeverity::Info, "ResourceAllocator.CreateResource",
-                            "Resource allocation size is larger then the resource size.",
-                            ALLOCATOR_MESSAGE_ID_RESOURCE_ALLOCATION_SUBOPTIONAL_ALIGNMENT);
-                    }
+                        if (allocation.GetSize() > resourceInfo.SizeInBytes) {
+                            LogMessageEvent(
+                                LogSeverity::Info, "ResourceAllocator.CreateResource",
+                                "Resource allocation size is larger then the resource size.",
+                                ALLOCATOR_MESSAGE_ID_RESOURCE_ALLOCATION_SUBOPTIONAL_ALIGNMENT);
+                        }
 
-                    return S_OK;
-                }));
+                        return S_OK;
+                    }));
+            }
         }
 
         // Attempt to create a standalone committed resource. This strategy is the safest but also
@@ -628,14 +636,12 @@ namespace gpgmm { namespace d3d12 {
         return S_OK;
     }
 
-    HRESULT ResourceAllocator::CreatePlacedResource(
-        Heap* const resourceHeap,
-        uint64_t resourceOffset,
-        const D3D12_RESOURCE_ALLOCATION_INFO resourceInfo,
-        const D3D12_RESOURCE_DESC* resourceDescriptor,
-        const D3D12_CLEAR_VALUE* clearValue,
-        D3D12_RESOURCE_STATES initialResourceState,
-        ID3D12Resource** placedResourceOut) {
+    HRESULT ResourceAllocator::CreatePlacedResource(Heap* const resourceHeap,
+                                                    uint64_t resourceOffset,
+                                                    const D3D12_RESOURCE_DESC* resourceDescriptor,
+                                                    const D3D12_CLEAR_VALUE* clearValue,
+                                                    D3D12_RESOURCE_STATES initialResourceState,
+                                                    ID3D12Resource** placedResourceOut) {
         if (resourceHeap == nullptr) {
             return E_FAIL;
         }

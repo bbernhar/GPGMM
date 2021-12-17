@@ -276,7 +276,6 @@ namespace gpgmm { namespace d3d12 {
 
         HRESULT CreatePlacedResource(Heap* const resourceHeap,
                                      uint64_t resourceOffset,
-                                     const D3D12_RESOURCE_ALLOCATION_INFO resourceInfo,
                                      const D3D12_RESOURCE_DESC* resourceDescriptor,
                                      const D3D12_CLEAR_VALUE* clearValue,
                                      D3D12_RESOURCE_STATES initialResourceState,
@@ -307,6 +306,7 @@ namespace gpgmm { namespace d3d12 {
         const bool mIsAlwaysCommitted;
         const bool mIsAlwaysInBudget;
         const uint64_t mMaxResourceHeapSize;
+        const uint64_t mPreferredResourceHeapSize;
 
         static constexpr uint64_t kNumOfResourceHeapTypes = 8u;
 
