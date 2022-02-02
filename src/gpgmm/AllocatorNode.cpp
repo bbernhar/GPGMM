@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "gpgmm/GraphNode.h"
+#include "gpgmm/AllocatorNode.h"
 
 #include "gpgmm/MemoryAllocator.h"
 
 namespace gpgmm {
 
     template <typename T>
-    GraphNode<T>::~GraphNode() {
+    AllocatorNode<T>::~AllocatorNode() {
         // Deletes adjacent node recursively (post-order).
         auto* curr = mChildren.head();
         while (curr != mChildren.end()) {
@@ -36,12 +36,12 @@ namespace gpgmm {
     }
 
     template <typename T>
-    bool GraphNode<T>::HasChild() const {
+    bool AllocatorNode<T>::HasChild() const {
         return !mChildren.empty();
     }
 
     template <typename T>
-    T* GraphNode<T>::GetFirstChild() const {
+    T* AllocatorNode<T>::GetFirstChild() const {
         if (mChildren.head() == nullptr) {
             return nullptr;
         }
@@ -49,14 +49,22 @@ namespace gpgmm {
     }
 
     template <typename T>
-    T* GraphNode<T>::AppendChild(std::unique_ptr<T> obj) {
+    T* AllocatorNode<T>::AppendChild(std::unique_ptr<T> obj) {
         ASSERT(obj != nullptr);
         mChildren.Append(obj.release());
         return mChildren.tail()->value();
     }
 
+    template <typename T>
+    std::unique_ptr<T> AllocatorNode<T>::RemoveChild(T* ptr) {
+        ASSERT(ptr != nullptr);
+        ASSERT(ptr->IsInList());
+        ptr->RemoveFromList();
+        return std::unique_ptr<T>(ptr);
+    }
+
     // Explictly instantiate the template to ensure the compiler has the
     // definition of the require type outside of this file.
-    template class GraphNode<MemoryAllocator>;
+    template class AllocatorNode<MemoryAllocator>;
 
 }  // namespace gpgmm

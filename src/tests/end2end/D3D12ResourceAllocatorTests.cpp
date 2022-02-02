@@ -343,29 +343,24 @@ TEST_F(D3D12ResourceAllocatorTests, CreateBufferNeverAllocate) {
         D3D12_RESOURCE_STATE_COMMON, nullptr, &allocation));
     ASSERT_EQ(allocation, nullptr);
 
+    constexpr uint64_t bufferSize = kDefaultPreferredResourceHeapSize / 8;
+
     allocationDesc.Flags = ALLOCATION_FLAG_NONE;
     ComPtr<ResourceAllocation> allocationA;
-    ASSERT_SUCCEEDED(mDefaultAllocator->CreateResource(
-        allocationDesc, CreateBasicBufferDesc(kDefaultPreferredResourceHeapSize / 2),
-        D3D12_RESOURCE_STATE_COMMON, nullptr, &allocationA));
+    ASSERT_SUCCEEDED(
+        mDefaultAllocator->CreateResource(allocationDesc, CreateBasicBufferDesc(bufferSize),
+                                          D3D12_RESOURCE_STATE_COMMON, nullptr, &allocationA));
     ASSERT_NE(allocationA, nullptr);
-    EXPECT_EQ(allocationA->GetSize(), kDefaultPreferredResourceHeapSize / 2);
+    EXPECT_EQ(allocationA->GetSize(), bufferSize);
 
     // Re-check that the same resource heap is used once CreateResource gets called.
     allocationDesc.Flags = ALLOCATION_FLAG_NEVER_ALLOCATE_MEMORY;
     ComPtr<ResourceAllocation> allocationB;
-    ASSERT_SUCCEEDED(mDefaultAllocator->CreateResource(
-        allocationDesc, CreateBasicBufferDesc(kDefaultPreferredResourceHeapSize / 2),
-        D3D12_RESOURCE_STATE_COMMON, nullptr, &allocationB));
+    ASSERT_SUCCEEDED(
+        mDefaultAllocator->CreateResource(allocationDesc, CreateBasicBufferDesc(bufferSize),
+                                          D3D12_RESOURCE_STATE_COMMON, nullptr, &allocationB));
     ASSERT_NE(allocationB, nullptr);
-    EXPECT_EQ(allocationB->GetSize(), kDefaultPreferredResourceHeapSize / 2);
-
-    // Must fail since the first resource heap is full and another CreateResource cannot allocate.
-    ComPtr<ResourceAllocation> allocationC;
-    ASSERT_FAILED(mDefaultAllocator->CreateResource(
-        allocationDesc, CreateBasicBufferDesc(kDefaultPreferredResourceHeapSize / 2),
-        D3D12_RESOURCE_STATE_COMMON, nullptr, &allocationC));
-    ASSERT_EQ(allocationC, nullptr);
+    EXPECT_EQ(allocationB->GetSize(), bufferSize);
 }
 
 TEST_F(D3D12ResourceAllocatorTests, CreateBufferSuballocatedWithin) {
@@ -673,7 +668,7 @@ TEST_F(D3D12ResourceAllocatorTests, CreateBufferQueryInfo) {
 
     // Calculate stats for two sub-allocations.
     {
-        constexpr uint64_t kBufferSize = kDefaultPreferredResourceHeapSize / 2;
+        constexpr uint64_t kBufferSize = kDefaultPreferredResourceHeapSize / 8;
         ComPtr<ResourceAllocation> firstAllocation;
         ASSERT_SUCCEEDED(mDefaultAllocator->CreateResource({}, CreateBasicBufferDesc(kBufferSize),
                                                            D3D12_RESOURCE_STATE_GENERIC_READ,

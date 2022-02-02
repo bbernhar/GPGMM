@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef GPGMM_GRAPHNODE_H_
-#define GPGMM_GRAPHNODE_H_
+#ifndef GPGMM_ALLOCATORNODE_H_
+#define GPGMM_ALLOCATORNODE_H_
 
 #include "gpgmm/common/LinkedList.h"
 
@@ -23,13 +23,14 @@ namespace gpgmm {
 
     // Exposes as a node in a DAG.
     template <typename T>
-    class GraphNode : public LinkNode<T> {
+    class AllocatorNode : public LinkNode<T> {
       public:
-        virtual ~GraphNode();
+        virtual ~AllocatorNode();
 
         bool HasChild() const;
         T* GetFirstChild() const;
         T* AppendChild(std::unique_ptr<T> obj);
+        std::unique_ptr<T> RemoveChild(T* ptr);
 
       protected:
         LinkedList<T> mChildren;
@@ -37,4 +38,4 @@ namespace gpgmm {
 
 }  // namespace gpgmm
 
-#endif  // GPGMM_GRAPHNODE_H_
+#endif  // GPGMM_ALLOCATORNODE_H_

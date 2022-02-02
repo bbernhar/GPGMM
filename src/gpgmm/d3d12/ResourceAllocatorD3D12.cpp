@@ -18,6 +18,7 @@
 #include "gpgmm/BuddyMemoryAllocator.h"
 #include "gpgmm/ConditionalMemoryAllocator.h"
 #include "gpgmm/SegmentedMemoryAllocator.h"
+#include "gpgmm/SlabMemoryAllocator.h"
 #include "gpgmm/common/Log.h"
 #include "gpgmm/common/Math.h"
 #include "gpgmm/d3d12/BackendD3D12.h"
@@ -363,10 +364,18 @@ namespace gpgmm { namespace d3d12 {
                         std::move(pooledHeapAllocator), std::move(standaloneAllocator),
                         descriptor.MaxResourceSizeForPooling);
 
-                mResourceSubAllocatorOfType[resourceHeapTypeIndex] =
+                std::unique_ptr<MemoryAllocator> buddySubAllocator =
                     std::make_unique<BuddyMemoryAllocator>(
                         mMaxResourceHeapSize, descriptor.PreferredResourceHeapSize, heapAlignment,
                         std::move(conditionalHeapAllocator));
+
+                // TODO: Figure out the optimal slab size to heap ratio.
+                const uint64_t slabSize = descriptor.PreferredResourceHeapSize / 8;
+
+                mResourceSubAllocatorOfType[resourceHeapTypeIndex] =
+                    std::make_unique<SlabCacheAllocator>(heapAlignment, mMaxResourceHeapSize,
+                                                         slabSize, heapAlignment,
+                                                         std::move(buddySubAllocator));
             }
 
             {
