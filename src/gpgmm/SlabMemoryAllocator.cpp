@@ -234,12 +234,13 @@ namespace gpgmm {
           mSlabSize(slabSize),
           mSlabAlignment(slabAlignment),
           mSlabFragmentationLimit(slabFragmentationLimit),
-          mMemoryAllocator(std::move(memoryAllocator)) {
+          mMemoryAllocator(std::move(memoryAllocator)),
+          mSizeCache(/*keepAlive*/ true) {
         ASSERT(IsPowerOfTwo(mMaxSlabSize));
     }
 
     SlabCacheAllocator::~SlabCacheAllocator() {
-        ASSERT(mSizeCache.GetSize() == 0);
+        mSizeCache.RemoveAndDeleteAll();
     }
 
     std::unique_ptr<MemoryAllocation> SlabCacheAllocator::TryAllocateMemory(uint64_t allocationSize,

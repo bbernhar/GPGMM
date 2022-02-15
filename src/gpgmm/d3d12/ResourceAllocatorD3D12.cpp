@@ -17,6 +17,7 @@
 
 #include "gpgmm/BuddyMemoryAllocator.h"
 #include "gpgmm/ConditionalMemoryAllocator.h"
+#include "gpgmm/MemorySize.h"
 #include "gpgmm/SegmentedMemoryAllocator.h"
 #include "gpgmm/SlabMemoryAllocator.h"
 #include "gpgmm/common/Log.h"
@@ -344,9 +345,6 @@ namespace gpgmm { namespace d3d12 {
             SetRecordEventLevel(recordEventLogLevel);
         }
 
-        const LogSeverity& logLevel = static_cast<LogSeverity>(descriptor.MinLogLevel);
-        SetLogMessageLevel(logLevel);
-
         ComPtr<ResidencyManager> residencyManager;
         if (SUCCEEDED(ResidencyManager::CreateResidencyManager(
                 newDescriptor.Device, newDescriptor.Adapter, newDescriptor.IsUMA,
@@ -355,6 +353,9 @@ namespace gpgmm { namespace d3d12 {
         }
 
         *resourceAllocatorOut = new ResourceAllocator(newDescriptor, residencyManager);
+
+        const LogSeverity& logLevel = static_cast<LogSeverity>(descriptor.MinLogLevel);
+        SetLogMessageLevel(logLevel);
 
         d3d12::LogEvent("GPUMemoryAllocator", descriptor);
 
@@ -450,6 +451,34 @@ namespace gpgmm { namespace d3d12 {
                         /*slabAlignment*/ D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
                         /*slabFragmentationLimit*/ 0, std::move(bufferAllocator));
             }
+
+            // Cache resource sizes per general-purpose allocator.
+            // Ensures the allocator's next available block is made available upon first request
+            // without increasing the actual memory footprint. Since resources are always
+            // sized-aligned, the cached size must be requested per possible multiple or alignment
+            // {4KB, 64KB, or 4MB}.
+            //
+            // Suppress log messages emitted from cache-miss requests.
+            const LogSeverity& prevLevel = SetLogMessageLevel(LogSeverity::Info);
+
+            for (uint64_t i = 0; i < MemorySize::kPowerOfTwoClassSize; i++) {
+                mResourceAllocatorOfType[resourceHeapTypeIndex]->TryAllocateMemory(
+                    MemorySize::kPowerOfTwoCacheSizes[i].SizeInBytes,
+                    D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT,
+                    /*neverAllocate*/ true);
+
+                mResourceAllocatorOfType[resourceHeapTypeIndex]->TryAllocateMemory(
+                    MemorySize::kPowerOfTwoCacheSizes[i].SizeInBytes,
+                    D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
+                    /*neverAllocate*/ true);
+
+                mResourceAllocatorOfType[resourceHeapTypeIndex]->TryAllocateMemory(
+                    MemorySize::kPowerOfTwoCacheSizes[i].SizeInBytes,
+                    D3D12_DEFAULT_MSAA_RESOURCE_PLACEMENT_ALIGNMENT,
+                    /*neverAllocate*/ true);
+            }
+
+            SetLogMessageLevel(prevLevel);
         }
     }
 

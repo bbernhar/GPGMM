@@ -29,6 +29,10 @@ namespace gpgmm {
         std::unique_ptr<MemoryAllocation> TryAllocateMemory(uint64_t allocationSize,
                                                             uint64_t alignment,
                                                             bool neverAllocate) override {
+            if (neverAllocate) {
+                return {};
+            }
+
             mInfo.UsedMemoryUsage += allocationSize;
             return std::make_unique<MemoryAllocation>(this, new MemoryBase(allocationSize));
         }

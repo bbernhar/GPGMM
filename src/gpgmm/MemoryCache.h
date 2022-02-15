@@ -128,7 +128,13 @@ namespace gpgmm {
 
         MemoryCache() = default;
 
+        explicit MemoryCache(bool keepAlive) : mKeepAlive(keepAlive) {
+        }
+
         ~MemoryCache() {
+            if (mKeepAlive) {
+                RemoveAndDeleteAll();
+            }
             ASSERT(GetSize() == 0);
         }
 
@@ -139,6 +145,9 @@ namespace gpgmm {
                 return (*iter);
             }
             CacheEntryT* entry = new CacheEntryT(this, tmp.AcquireValue());
+            if (mKeepAlive) {
+                entry->Ref();
+            }
             const bool success = mCache.insert(entry).second;
             ASSERT(success);
             return ScopedRef<CacheEntryT>(entry);
@@ -166,6 +175,18 @@ namespace gpgmm {
             return mCache.cend();
         }
 
+        void RemoveAndDeleteAll() {
+            for (auto it = mCache.begin(); it != mCache.end();) {
+                if ((*it)->Unref()) {
+                    auto curr = it;
+                    it++;
+                    RemoveCacheEntry(*curr);
+                } else {
+                    it++;
+                }
+            }
+        }
+
       private:
         friend CacheEntryT;
 
@@ -177,6 +198,7 @@ namespace gpgmm {
         }
 
         Cache mCache;
+        bool mKeepAlive = false;  // Whether | mCache | holds a ref itself of the value.
     };
 }  // namespace gpgmm
 

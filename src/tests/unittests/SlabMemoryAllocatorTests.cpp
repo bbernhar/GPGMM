@@ -122,6 +122,19 @@ TEST(SlabMemoryAllocatorTests, SingleSlab) {
         EXPECT_GE(allocation->GetSize(), kBlockSize);
         EXPECT_GE(allocation->GetMemory()->GetSize(), kSlabSize);
     }
+
+    // Verify requesting an allocation without memory will not return a valid allocation.
+    {
+        constexpr uint64_t kBlockSize = 32;
+        constexpr uint64_t kMaxSlabSize = 512;
+        SlabMemoryAllocator allocator(kBlockSize, kMaxSlabSize, kDefaultSlabSize,
+                                      kDefaultSlabAlignment, kDefaultSlabFragmentationLimit,
+                                      dummyMemoryAllocator.get());
+
+        EXPECT_EQ(allocator.TryAllocateMemory(kBlockSize, 1, true), nullptr);
+        EXPECT_EQ(allocator.TryAllocateMemory(kBlockSize / 2, 1, true), nullptr);
+        EXPECT_EQ(allocator.TryAllocateMemory(kBlockSize / 4, 1, true), nullptr);
+    }
 }
 
 // Verify a single resource allocation in multiple slabs.
@@ -207,6 +220,21 @@ TEST(SlabMemoryAllocatorTests, ReuseSlabs) {
     ASSERT_EQ(pool.GetPoolSize(), kNumOfSlabs);
 
     pool.ReleasePool();
+}
+
+TEST(SlabMemoryAllocatorTests, SingleSlabMultipleSize) {
+    constexpr uint64_t kMinBlockSize = 4;
+    constexpr uint64_t kMaxSlabSize = 256;
+    constexpr uint64_t kSlabSize = 0;  // deduce slab size from allocation size.
+    SlabCacheAllocator allocator(kMinBlockSize, kMaxSlabSize, kSlabSize, kDefaultSlabAlignment,
+                                 kDefaultSlabFragmentationLimit,
+                                 std::make_unique<DummyMemoryAllocator>());
+
+    // Verify requesting an allocation without memory will not return a valid allocation.
+    {
+        EXPECT_EQ(allocator.TryAllocateMemory(kMinBlockSize, 1, true), nullptr);
+        EXPECT_EQ(allocator.TryAllocateMemory(kMinBlockSize * 2, 1, true), nullptr);
+    }
 }
 
 TEST(SlabMemoryAllocatorTests, MultipleSlabsSameSize) {
