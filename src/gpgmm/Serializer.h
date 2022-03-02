@@ -16,10 +16,8 @@
 #define GPGMM_SERIALIZER_H_
 
 #include "gpgmm/TraceEvent.h"
+#include "gpgmm/common/JSONEncoder.h"
 #include "gpgmm/common/Log.h"
-
-#include <sstream>
-#include <string>
 
 namespace gpgmm {
 
@@ -27,30 +25,6 @@ namespace gpgmm {
     // Set the new level and returns the previous level so it may be restored by the caller.
     LogSeverity SetRecordEventLevel(const LogSeverity& level);
     const LogSeverity& GetRecordEventLevel();
-
-    class JSONDict {
-      public:
-        JSONDict();
-
-        std::string ToString() const;
-
-        // Per JSON data type
-        void AddItem(const std::string& name, std::string value);
-        void AddItem(const std::string& name, uint64_t value);
-        void AddItem(const std::string& name, uint32_t value);
-        void AddItem(const std::string& name, bool value);
-        void AddItem(const std::string& name, float value);
-        void AddItem(const std::string& name, double value);
-        void AddItem(const std::string& name, int value);
-        void AddItem(const std::string& name, unsigned char value);
-        void AddItem(const std::string& name, const JSONDict& object);
-
-      private:
-        void AddString(const std::string& name, const std::string& value);
-
-        bool mHasItem = false;
-        std::stringstream mSS;
-    };
 
     // Forward declare common types.
     struct ALLOCATOR_MESSAGE;
@@ -68,7 +42,7 @@ namespace gpgmm {
     template <typename T, typename DescT, typename SerializerT = Serializer>
     static void RecordObject(const char* name, T* objPtr, const DescT& desc) {
         if (IsEventTracerEnabled()) {
-            const auto& args = SerializerT::Serialize(desc).ToString();
+            const auto& args = SerializerT::Serialize(desc);
             TRACE_EVENT_OBJECT_SNAPSHOT_WITH_ID(name, objPtr, args);
         }
     }
@@ -76,7 +50,7 @@ namespace gpgmm {
     template <typename T, typename SerializerT>
     static void RecordEvent(const char* name, const T& obj) {
         if (IsEventTracerEnabled()) {
-            const auto& args = SerializerT::Serialize(obj).ToString();
+            const auto& args = SerializerT::Serialize(obj);
             TRACE_EVENT_INSTANT(name, args);
         }
     }
