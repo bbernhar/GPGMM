@@ -45,6 +45,7 @@ namespace gpgmm {
                                                             bool cachedSize) override;
         void DeallocateMemory(MemoryAllocation* allocation) override;
         void ReleaseMemory() override;
+        MEMORY_ALLOCATOR_INFO QueryInfo() const override;
 
         uint64_t GetSegmentSizeForTesting() const;
 

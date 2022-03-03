@@ -315,6 +315,9 @@ namespace gpgmm {
             info.UsedBlockCount += childInfo.UsedBlockCount;
             info.UsedBlockUsage += childInfo.UsedBlockUsage;
         }
+        info.FreeMemoryUsage = mMemoryAllocator->QueryInfo().FreeMemoryUsage;
+        info.UsedMemoryCount = mMemoryAllocator->QueryInfo().UsedMemoryCount;
+        info.UsedMemoryUsage = mMemoryAllocator->QueryInfo().UsedMemoryUsage;
         return info;
     }
 

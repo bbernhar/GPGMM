@@ -147,13 +147,14 @@ namespace gpgmm {
             GPGMM_TRY_ASSIGN(GetFirstChild()->TryAllocateMemory(allocationSize, mMemoryAlignment,
                                                                 neverAllocate, cacheSize),
                              allocation);
+        } else {
+            mInfo.FreeMemoryUsage -= allocation->GetSize();
         }
 
         MemoryBase* memory = allocation->GetMemory();
         ASSERT(memory != nullptr);
 
         memory->SetPool(segment);
-        mInfo.FreeMemoryUsage -= memory->GetSize();
 
         return std::make_unique<MemoryAllocation>(this, memory);
     }
@@ -163,15 +164,22 @@ namespace gpgmm {
 
         ASSERT(allocation != nullptr);
 
+        mInfo.FreeMemoryUsage += allocation->GetSize();
+
         MemoryBase* memory = allocation->GetMemory();
         ASSERT(memory != nullptr);
 
         MemoryPool* pool = memory->GetPool();
         ASSERT(pool != nullptr);
 
-        mInfo.FreeMemoryUsage += memory->GetSize();
-
         pool->ReturnToPool(std::make_unique<MemoryAllocation>(GetFirstChild(), memory));
+    }
+
+    MEMORY_ALLOCATOR_INFO SegmentedMemoryAllocator::QueryInfo() const {
+        MEMORY_ALLOCATOR_INFO info = mInfo;
+        info.UsedMemoryCount = GetFirstChild()->QueryInfo().UsedMemoryCount;
+        info.UsedMemoryUsage = GetFirstChild()->QueryInfo().UsedMemoryUsage;
+        return info;
     }
 
     void SegmentedMemoryAllocator::ReleaseMemory() {

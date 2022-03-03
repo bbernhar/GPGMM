@@ -35,9 +35,9 @@ namespace gpgmm {
             GPGMM_TRY_ASSIGN(GetFirstChild()->TryAllocateMemory(allocationSize, alignment,
                                                                 neverAllocate, cacheSize),
                              allocation);
+        } else {
+            mInfo.FreeMemoryUsage -= allocation->GetSize();
         }
-
-        mInfo.FreeMemoryUsage -= allocation->GetSize();
 
         return allocation;
     }
@@ -45,5 +45,12 @@ namespace gpgmm {
     void PooledMemoryAllocator::DeallocateMemory(MemoryAllocation* allocation) {
         mInfo.FreeMemoryUsage += allocation->GetSize();
         mPool->ReturnToPool(std::unique_ptr<MemoryAllocation>(allocation));
+    }
+
+    MEMORY_ALLOCATOR_INFO PooledMemoryAllocator::QueryInfo() const {
+        MEMORY_ALLOCATOR_INFO info = mInfo;
+        info.UsedMemoryCount = GetFirstChild()->QueryInfo().UsedMemoryCount;
+        info.UsedMemoryUsage = GetFirstChild()->QueryInfo().UsedMemoryUsage;
+        return info;
     }
 }  // namespace gpgmm
