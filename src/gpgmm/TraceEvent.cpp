@@ -26,19 +26,15 @@
 
 namespace gpgmm {
 
-    FileEventTracer* gEventTracer = nullptr;
+    std::unique_ptr<FileEventTracer> gEventTracer;
 
     void StartupEventTracer(const std::string& traceFile,
                             bool skipDurationEvents,
                             bool skipObjectEvents,
                             bool skipInstantEvents) {
-        gEventTracer =
-            new FileEventTracer(traceFile, skipDurationEvents, skipObjectEvents, skipInstantEvents);
-    }
-
-    void ShutdownEventTracer() {
-        if (gEventTracer != nullptr) {
-            SafeDelete(gEventTracer);
+        if (gEventTracer == nullptr) {
+            gEventTracer = std::make_unique<FileEventTracer>(traceFile, skipDurationEvents,
+                                                             skipObjectEvents, skipInstantEvents);
         }
     }
 
@@ -124,7 +120,8 @@ namespace gpgmm {
             }
 
             if (mSkipObjectEvents && (traceEvent.mPhase == TRACE_EVENT_PHASE_CREATE_OBJECT ||
-                                      traceEvent.mPhase == TRACE_EVENT_PHASE_DELETE_OBJECT)) {
+                                      traceEvent.mPhase == TRACE_EVENT_PHASE_DELETE_OBJECT ||
+                                      traceEvent.mPhase == TRACE_EVENT_PHASE_SNAPSHOT_OBJECT)) {
                 continue;
             }
 

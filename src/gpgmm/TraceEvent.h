@@ -106,7 +106,6 @@ namespace gpgmm {
                             bool skipDurationEvents,
                             bool skipObjectEvents,
                             bool skipInstantEvents);
-    void ShutdownEventTracer();
 
     bool IsEventTracerEnabled();
 

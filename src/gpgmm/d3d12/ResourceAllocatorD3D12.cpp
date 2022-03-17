@@ -115,7 +115,9 @@ namespace gpgmm { namespace d3d12 {
                 RecordLogMessage(severity, "ResourceAllocator.GetResourceAllocationInfo",
                                  "Resource alignment is much larger due to D3D12 (" +
                                      std::to_string(resourceDescriptor.Alignment) + " vs " +
-                                     std::to_string(resourceInfo.Alignment) + " bytes).",
+                                     std::to_string(resourceInfo.Alignment) +
+                                     " bytes) for resource : " +
+                                     Serializer::Serialize(resourceDescriptor).ToString() + ".",
                                  ALLOCATOR_MESSAGE_ID_RESOURCE_MISALIGNMENT);
 
                 resourceDescriptor.Alignment = 0;
@@ -524,13 +526,9 @@ namespace gpgmm { namespace d3d12 {
     ResourceAllocator::~ResourceAllocator() {
         TRACE_EVENT_OBJECT_DELETED_WITH_ID("GPUMemoryAllocator", this);
 
-        // Destroy allocators in the reverse order they were created so we can record delete events
-        // before event tracer shutdown.
         mBufferAllocatorOfType = {};
         mResourceAllocatorOfType = {};
         mResourceHeapAllocatorOfType = {};
-
-        ShutdownEventTracer();
 
         // TODO: Report details on leaked allocations.
         ASSERT(SUCCEEDED(CheckForDeviceObjectLeaks()));
