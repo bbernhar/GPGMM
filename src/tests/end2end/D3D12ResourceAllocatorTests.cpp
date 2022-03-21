@@ -299,6 +299,17 @@ TEST_F(D3D12ResourceAllocatorTests, CreateBuffer) {
     }
 }
 
+TEST_F(D3D12ResourceAllocatorTests, CreateLeakedBuffer) {
+    ComPtr<ResourceAllocation> allocation;
+    ASSERT_SUCCEEDED(mDefaultAllocator->CreateResource(
+        {}, CreateBasicBufferDesc(kDefaultPreferredResourceHeapSize), D3D12_RESOURCE_STATE_COMMON,
+        nullptr, &allocation));
+    ASSERT_NE(allocation, nullptr);
+    ASSERT_NE(allocation->GetResource(), nullptr);
+
+    allocation.Detach();  // leak it on purpose
+}
+
 TEST_F(D3D12ResourceAllocatorTests, CreateSmallTexture) {
     // DXGI_FORMAT_R8G8B8A8_UNORM
     {

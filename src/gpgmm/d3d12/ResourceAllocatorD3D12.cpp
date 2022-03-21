@@ -26,6 +26,7 @@
 #include "gpgmm/d3d12/BackendD3D12.h"
 #include "gpgmm/d3d12/BufferAllocatorD3D12.h"
 #include "gpgmm/d3d12/CapsD3D12.h"
+#include "gpgmm/d3d12/DebugResourceAllocatorD3D12.h"
 #include "gpgmm/d3d12/DefaultsD3D12.h"
 #include "gpgmm/d3d12/ErrorD3D12.h"
 #include "gpgmm/d3d12/HeapD3D12.h"
@@ -403,6 +404,8 @@ namespace gpgmm { namespace d3d12 {
             gpgmm::WarningLog() << "Debug layers must be enabled to use device leak checking.\n";
         }
 
+        mDebugAllocator = std::make_unique<DebugResourceAllocator>();
+
         for (uint32_t resourceHeapTypeIndex = 0; resourceHeapTypeIndex < kNumOfResourceHeapTypes;
              resourceHeapTypeIndex++) {
             const RESOURCE_HEAP_TYPE& resourceHeapType =
@@ -534,7 +537,8 @@ namespace gpgmm { namespace d3d12 {
 
         ShutdownEventTracer();
 
-        // TODO: Report details on leaked allocations.
+        // Report details on leaked allocations.
+        mDebugAllocator = nullptr;
         ASSERT(SUCCEEDED(CheckForDeviceObjectLeaks()));
     }
 
@@ -619,6 +623,10 @@ namespace gpgmm { namespace d3d12 {
                         subAllocation.GetBlock(),     subAllocation.GetOffset(),
                         std::move(committedResource), resourceHeap};
 
+                    if (mDebugAllocator != nullptr) {
+                        mDebugAllocator->AddAllocationToTrack(*resourceAllocationOut);
+                    }
+
                     if (subAllocation.GetSize() > newResourceDesc.Width) {
                         RecordLogMessage(
                             LogSeverity::Debug, "ResourceAllocator.CreateResource",
@@ -654,6 +662,10 @@ namespace gpgmm { namespace d3d12 {
                         mResidencyManager.Get(),   subAllocation.GetAllocator(),
                         subAllocation.GetOffset(), subAllocation.GetBlock(),
                         std::move(placedResource), resourceHeap};
+
+                    if (mDebugAllocator != nullptr) {
+                        mDebugAllocator->AddAllocationToTrack(*resourceAllocationOut);
+                    }
 
                     if (subAllocation.GetSize() > resourceInfo.SizeInBytes) {
                         RecordLogMessage(
@@ -691,6 +703,10 @@ namespace gpgmm { namespace d3d12 {
                         mResidencyManager.Get(), allocation.GetAllocator(),
                         /*offsetFromHeap*/ 0, std::move(placedResource), resourceHeap};
 
+                    if (mDebugAllocator != nullptr) {
+                        mDebugAllocator->AddAllocationToTrack(*resourceAllocationOut);
+                    }
+
                     if (allocation.GetSize() > resourceInfo.SizeInBytes) {
                         RecordLogMessage(
                             LogSeverity::Debug, "ResourceAllocator.CreateResource",
@@ -727,6 +743,10 @@ namespace gpgmm { namespace d3d12 {
         *resourceAllocationOut =
             new ResourceAllocation{mResidencyManager.Get(), this, /*offsetFromHeap*/ kInvalidOffset,
                                    std::move(committedResource), resourceHeap};
+
+        if (mDebugAllocator != nullptr) {
+            mDebugAllocator->AddAllocationToTrack(*resourceAllocationOut);
+        }
 
         return S_OK;
     }

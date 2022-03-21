@@ -17,9 +17,9 @@
 #include "gpgmm/Allocator.h"
 #include "gpgmm/MemoryAllocator.h"
 #include "gpgmm/MemoryPool.h"
+#include "gpgmm/common/Utils.h"
 
 #include <algorithm>
-#include <sstream>
 
 namespace gpgmm {
 
@@ -73,11 +73,8 @@ namespace gpgmm {
 
     // static
     JSONDict Serializer::Serialize(void* objectPtr) {
-        std::stringstream objectRef;
-        objectRef << std::hex << TraceEventID(objectPtr).GetID();
-
         JSONDict dict;
-        dict.AddItem(TraceEventID::kIdRefKey, "0x" + objectRef.str());
+        dict.AddItem(TraceEventID::kIdRefKey, ToString(objectPtr));
         return dict;
     }
 
