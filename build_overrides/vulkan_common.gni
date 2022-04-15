@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-vulkan_headers_dir = "//third_party/vulkan-deps/vulkan-headers/src"
+vk_headers_dir = "//third_party/vulkan-deps/vulkan-headers/src"
 
 # Subdirectories for generated files
-vulkan_data_subdir = "vulkandata"
-vulkan_gen_subdir = ""
+vk_data_subdir = "vulkandata"
+vk_gen_subdir = ""
