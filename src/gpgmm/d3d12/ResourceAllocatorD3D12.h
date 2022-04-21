@@ -194,6 +194,11 @@ namespace gpgmm { namespace d3d12 {
         // Optional parameter. When 0 is specified, the API will automatically set the resource
         // fragmentation limit to 1/8th the resource heap size.
         double MemoryFragmentationLimit;
+
+        // Memory growth factor, used as the multipler when computing the size of resource heaps.
+        //
+        // Optional parameter. When 0 is specified, the default of 1.25 is used.
+        double MemoryGrowthFactor;
     };
 
     enum ALLOCATION_FLAGS {

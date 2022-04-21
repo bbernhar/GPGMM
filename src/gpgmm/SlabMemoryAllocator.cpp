@@ -31,21 +31,25 @@ namespace gpgmm {
 
     SlabMemoryAllocator::SlabMemoryAllocator(uint64_t blockSize,
                                              uint64_t maxSlabSize,
-                                             uint64_t slabSize,
+                                             uint64_t minSlabSize,
                                              uint64_t slabAlignment,
                                              double slabFragmentationLimit,
                                              bool prefetchSlab,
+                                             double slabGrowthFactor,
                                              MemoryAllocator* memoryAllocator)
-        : mBlockSize(blockSize),
+        : mLastUsedSlabSize(0),
+          mBlockSize(blockSize),
           mMaxSlabSize(maxSlabSize),
-          mSlabSize(slabSize),
+          mMinSlabSize(std::max(minSlabSize, blockSize)),
           mSlabAlignment(slabAlignment),
           mSlabFragmentationLimit(slabFragmentationLimit),
           mPrefetchSlab(prefetchSlab),
+          mSlabGrowthFactor(slabGrowthFactor),
           mMemoryAllocator(memoryAllocator) {
         ASSERT(IsPowerOfTwo(mMaxSlabSize));
         ASSERT(mMemoryAllocator != nullptr);
-        ASSERT(mSlabSize <= mMaxSlabSize);
+        ASSERT(mLastUsedSlabSize <= mMaxSlabSize);
+        ASSERT(mSlabGrowthFactor >= 1);
     }
 
     SlabMemoryAllocator::~SlabMemoryAllocator() {
@@ -60,18 +64,17 @@ namespace gpgmm {
         }
     }
 
-    uint64_t SlabMemoryAllocator::ComputeSlabSize(uint64_t size) const {
+    // Returns a new slab size of a power-of-two value.
+    uint64_t SlabMemoryAllocator::ComputeSlabSize(uint64_t requestSize, uint64_t slabSize) const {
+        ASSERT(requestSize <= mBlockSize);
+        ASSERT(slabSize > 0);
+
         // If the left over empty space is less than |mSlabFragmentationLimit| x slab size,
         // then the fragmentation is acceptable and we are done. For example, a 4MB slab and and a
         // 512KB block fits exactly 8 blocks with no wasted space. But a 3MB block has 1MB worth of
         // empty space leftover which exceeds |mSlabFragmentationLimit| x slab size or 500KB.
-        ASSERT(size <= mBlockSize);
-
-        // Slabs are grown in multiple of powers of two of the block size or |mSlabSize|
-        // if specified.
-        uint64_t slabSize = std::max(mSlabSize, mBlockSize);
-        const uint64_t wastedBytes = mBlockSize - size;
-        while (wastedBytes > (mSlabFragmentationLimit * slabSize)) {
+        const uint64_t fragmentedBytes = mBlockSize - requestSize;
+        while (fragmentedBytes > (mSlabFragmentationLimit * slabSize)) {
             slabSize *= 2;
         }
 
@@ -104,7 +107,8 @@ namespace gpgmm {
             return {};
         }
 
-        const uint64_t slabSize = ComputeSlabSize(size);
+        // Compute the slab size for this allocation.
+        uint64_t slabSize = ComputeSlabSize(size, std::max(mMinSlabSize, mLastUsedSlabSize));
         if (slabSize > mMaxSlabSize) {
             DebugEvent("SlabMemoryAllocator.TryAllocateMemory", ALLOCATOR_MESSAGE_ID_SIZE_EXCEEDED)
                 << "Slab size exceeded the max slab size (" + std::to_string(slabSize) + " vs " +
@@ -130,6 +134,16 @@ namespace gpgmm {
 
         // Push new free slab at free-list HEAD
         if (cache->FreeList.empty() || pFreeSlab->IsFull()) {
+            // Grow the next free slab.
+            if (mLastUsedSlabSize != 0) {
+                uint64_t newSlabSize =
+                    std::min(ComputeSlabSize(size, slabSize * mSlabGrowthFactor), mMaxSlabSize);
+                if (newSlabSize > slabSize) {
+                    cache = GetOrCreateCache(newSlabSize);
+                    slabSize = newSlabSize;
+                }
+            }
+
             Slab* pNewFreeSlab = new Slab(slabSize / mBlockSize, mBlockSize);
             pNewFreeSlab->InsertBefore(cache->FreeList.head());
             pFreeSlab = pNewFreeSlab;
@@ -184,6 +198,8 @@ namespace gpgmm {
             mNextSlabAllocationEvent =
                 mMemoryAllocator->TryAllocateMemoryAsync(slabSize, mSlabAlignment);
         }
+
+        mLastUsedSlabSize = slabSize;
 
         // Wrap the block in the containing slab. Since the slab's block could reside in another
         // allocated block, the slab's allocation offset must be made relative to slab's underlying
@@ -275,18 +291,20 @@ namespace gpgmm {
 
     SlabCacheAllocator::SlabCacheAllocator(uint64_t minBlockSize,
                                            uint64_t maxSlabSize,
-                                           uint64_t slabSize,
+                                           uint64_t minSlabSize,
                                            uint64_t slabAlignment,
                                            double slabFragmentationLimit,
                                            bool prefetchSlab,
+                                           double slabGrowthFactor,
                                            std::unique_ptr<MemoryAllocator> memoryAllocator)
         : MemoryAllocator(std::move(memoryAllocator)),
           mMinBlockSize(minBlockSize),
           mMaxSlabSize(maxSlabSize),
-          mSlabSize(slabSize),
+          mMinSlabSize(minSlabSize),
           mSlabAlignment(slabAlignment),
           mSlabFragmentationLimit(slabFragmentationLimit),
-          mPrefetchSlab(prefetchSlab) {
+          mPrefetchSlab(prefetchSlab),
+          mSlabGrowthFactor(slabGrowthFactor) {
         ASSERT(IsPowerOfTwo(mMaxSlabSize));
     }
 
@@ -312,9 +330,9 @@ namespace gpgmm {
         auto entry = mSizeCache.GetOrCreate(SlabAllocatorCacheEntry(blockSize), cacheSize);
         SlabMemoryAllocator* slabAllocator = entry->GetValue().pSlabAllocator;
         if (slabAllocator == nullptr) {
-            slabAllocator =
-                new SlabMemoryAllocator(blockSize, mMaxSlabSize, mSlabSize, mSlabAlignment,
-                                        mSlabFragmentationLimit, mPrefetchSlab, GetFirstChild());
+            slabAllocator = new SlabMemoryAllocator(
+                blockSize, mMaxSlabSize, mMinSlabSize, mSlabAlignment, mSlabFragmentationLimit,
+                mPrefetchSlab, mSlabGrowthFactor, GetFirstChild());
             entry->GetValue().pSlabAllocator = slabAllocator;
             mSlabAllocators.Append(slabAllocator);
         }
@@ -329,7 +347,7 @@ namespace gpgmm {
         // Hold onto the cached allocator until the last allocation gets deallocated.
         entry->Ref();
 
-        TRACE_COUNTER1(TraceEventCategory::Default, "GPU slabs allocated (MB)",
+        TRACE_COUNTER1(TraceEventCategory::Default, "GPU slab memory used (MB)",
                        (GetFirstChild()->GetInfo().UsedMemoryUsage) / 1e6);
 
         TRACE_COUNTER1(TraceEventCategory::Default, "GPU slab cache miss-rate (%)",

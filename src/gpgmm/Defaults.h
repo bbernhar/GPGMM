@@ -20,6 +20,8 @@
 namespace gpgmm {
     static constexpr const char* kDefaultTraceFile = "gpgmm_event_trace.json";
     static constexpr double kDefaultFragmentationLimit = 0.125;  // 1/8th or 12.5%
+    static constexpr double kDefaultMemoryGrowthFactor = 1.25;
+
 }  // namespace gpgmm
 
 #endif  // GPGMM_DEFAULTS_H_
