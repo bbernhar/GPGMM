@@ -193,6 +193,9 @@ namespace gpgmm {
                                                       AllocationMethod::kUndefined, block);
         }
 
+        // Validates for the requested allocation.
+        bool IsRequestInvalid(const MEMORY_ALLOCATION_REQUEST& request) const;
+
         MEMORY_ALLOCATOR_INFO mInfo = {};
 
         mutable std::mutex mMutex;

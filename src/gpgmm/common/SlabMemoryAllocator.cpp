@@ -328,7 +328,7 @@ namespace gpgmm {
 
         std::lock_guard<std::mutex> lock(mMutex);
 
-        GPGMM_CHECK_NONZERO(request.SizeInBytes);
+        GPGMM_TRY(IsRequestInvalid(request));
 
         MEMORY_ALLOCATION_REQUEST newRequest = request;
         newRequest.SizeInBytes = AlignTo(request.SizeInBytes, request.Alignment);

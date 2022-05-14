@@ -132,7 +132,7 @@ namespace gpgmm {
 
         std::lock_guard<std::mutex> lock(mMutex);
 
-        GPGMM_CHECK_NONZERO(request.SizeInBytes);
+        GPGMM_TRY(IsRequestInvalid(request));
 
         if (request.Alignment != mMemoryAlignment) {
             InfoEvent("SegmentedMemoryAllocator.TryAllocateMemory",

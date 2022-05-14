@@ -15,6 +15,8 @@
 #ifndef GPGMM_COMMON_ERROR_H_
 #define GPGMM_COMMON_ERROR_H_
 
+#include "gpgmm/utils/Log.h"
+
 namespace gpgmm {
 
 #define GPGMM_CHECK_NONZERO(size) \
@@ -35,6 +37,24 @@ namespace gpgmm {
         value = std::move(result);    \
     }                                 \
     for (;;)                          \
+    break
+
+#define GPGMM_TRY(expr)               \
+    {                                 \
+        auto result = expr;           \
+        if (GPGMM_UNLIKELY(result)) { \
+            return {};                \
+        }                             \
+    }                                 \
+    for (;;)                          \
+    break
+
+#define GPGMM_INVALID_IF(expr, ...) \
+    if (GPGMM_UNLIKELY(expr)) {     \
+        DebugLog() << __VA_ARGS__;  \
+        return true;                \
+    }                               \
+    for (;;)                        \
     break
 
 }  // namespace gpgmm

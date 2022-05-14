@@ -14,6 +14,8 @@
 
 #include "gpgmm/common/MemoryAllocator.h"
 
+#include "gpgmm/utils/Math.h"
+
 namespace gpgmm {
 
     class AllocateMemoryTask : public VoidCallback {
@@ -115,6 +117,20 @@ namespace gpgmm {
 
     const char* MemoryAllocator::GetTypename() const {
         return "MemoryAllocator";
+    }
+
+    bool MemoryAllocator::IsRequestInvalid(const MEMORY_ALLOCATION_REQUEST& request) const {
+        GPGMM_INVALID_IF(request.Alignment == 0, "Requested alignment must be non-zero.");
+        GPGMM_INVALID_IF(request.SizeInBytes == 0, "Requested size must be non-zero");
+        GPGMM_INVALID_IF(AlignTo(request.SizeInBytes, request.Alignment),
+                         "Requested size is not aligned to the alignment.");
+
+        GPGMM_INVALID_IF(GetMemorySize() != kInvalidSize && GetMemorySize() < request.SizeInBytes,
+                         "Request size exceeds memory size allowed by allocator.");
+        GPGMM_INVALID_IF(
+            GetMemoryAlignment() != kInvalidOffset && GetMemoryAlignment() < request.Alignment,
+            "Request alignment exceeds memory alignment allowed by allocator.");
+        return false;
     }
 
 }  // namespace gpgmm
