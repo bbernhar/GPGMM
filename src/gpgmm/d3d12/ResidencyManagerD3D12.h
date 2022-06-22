@@ -23,6 +23,10 @@
 #include <memory>
 #include <mutex>
 
+namespace gpgmm {
+    class ThreadPool;
+}  // namespace gpgmm
+
 namespace gpgmm::d3d12 {
 
     class Fence;
@@ -102,6 +106,9 @@ namespace gpgmm::d3d12 {
          */
         uint64_t MemoryCount = 0;
     };
+
+    class BudgetChangeEvent;
+    class BudgetChangeTask;
 
     /** \brief ResidencyManager tracks and maintains one or more Heap within a residency cache.
 
@@ -207,6 +214,8 @@ namespace gpgmm::d3d12 {
         RESIDENCY_INFO GetInfo() const;
 
       private:
+        friend BudgetChangeTask;
+
         ResidencyManager(const RESIDENCY_DESC& descriptor, std::unique_ptr<Fence> fence);
 
         HRESULT EvictInternal(uint64_t evictSizeInBytes,
@@ -237,6 +246,9 @@ namespace gpgmm::d3d12 {
         // Query and set the video memory limits for all segments.
         HRESULT UpdateVideoMemorySegments();
 
+        void StartBudgetChangeNotifications();
+        void StopBudgetChangeNotifications();
+
         ComPtr<ID3D12Device> mDevice;
         ComPtr<IDXGIAdapter3> mAdapter;
         ComPtr<ID3D12Device3> mDevice3;
@@ -252,6 +264,9 @@ namespace gpgmm::d3d12 {
         VideoMemorySegment mNonLocalVideoMemorySegment;
 
         std::mutex mMutex;
+
+        std::shared_ptr<ThreadPool> mThreadPool;
+        std::shared_ptr<BudgetChangeEvent> mBudgetChangeEvent;
     };
 
 }  // namespace gpgmm::d3d12

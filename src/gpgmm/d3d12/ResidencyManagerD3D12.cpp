@@ -17,6 +17,7 @@
 
 #include "gpgmm/common/EventMessage.h"
 #include "gpgmm/common/TraceEvent.h"
+#include "gpgmm/common/WorkerThread.h"
 #include "gpgmm/d3d12/ErrorD3D12.h"
 #include "gpgmm/d3d12/FenceD3D12.h"
 #include "gpgmm/d3d12/HeapD3D12.h"
@@ -31,6 +32,87 @@ namespace gpgmm::d3d12 {
 
     static constexpr uint32_t kDefaultEvictBatchSize = 50ll * 1024ll * 1024ll;  // 50MB
     static constexpr float kDefaultVideoMemoryBudget = 0.95f;               // 95%
+
+    class BudgetChangeTask : public VoidCallback {
+      public:
+        BudgetChangeTask(ResidencyManager* const residencyManager, ComPtr<IDXGIAdapter3> adapter)
+            : mResidencyManager(residencyManager),
+              mAdapter(std::move(adapter)),
+              mBudgetChangeEvent(CreateEventW(NULL, FALSE, FALSE, NULL)),
+              mUnregisterExitEvent(CreateEventW(NULL, FALSE, FALSE, NULL)) {
+            HRESULT hr = mAdapter->RegisterVideoMemoryBudgetChangeNotificationEvent(
+                mBudgetChangeEvent, &mCookie);
+            ASSERT(SUCCEEDED(hr));
+        }
+
+        void operator()() override {
+            while (true) {
+                // Wait on two events: one to unblock for OS budget changes, and another to unblock
+                // for shutdown.
+                HANDLE hWaitEvents[2] = {mBudgetChangeEvent, mUnregisterExitEvent};
+                WaitForMultipleObjects(2, hWaitEvents, /*bWaitAll*/ false, INFINITE);
+                {
+                    std::lock_guard<std::mutex> lock(mMutex);
+                    if (mIsExiting) {
+                        return;
+                    }
+                }
+
+                gpgmm::DebugLog() << "Updating budget from OS notification.";
+                HRESULT hr = mResidencyManager->UpdateVideoMemorySegments();
+                ASSERT(SUCCEEDED(hr));
+            }
+        }
+
+        bool UnregisterAndExit() {
+            mAdapter->UnregisterVideoMemoryBudgetChangeNotification(mCookie);
+            {
+                std::lock_guard<std::mutex> lock(mMutex);
+                mIsExiting = true;
+            }
+            return SetEvent(mUnregisterExitEvent);
+        }
+
+      private:
+        ResidencyManager* const mResidencyManager;
+        ComPtr<IDXGIAdapter3> mAdapter;
+
+        HANDLE mBudgetChangeEvent = INVALID_HANDLE_VALUE;
+        HANDLE mUnregisterExitEvent = INVALID_HANDLE_VALUE;
+
+        DWORD mCookie = 0;  // Unused to unregister notifications.
+
+        std::mutex mMutex;  // Protect access between threads for members below.
+        bool mIsExiting = false;
+    };
+
+    class BudgetChangeEvent final : public Event {
+      public:
+        BudgetChangeEvent(std::shared_ptr<Event> event, std::shared_ptr<BudgetChangeTask> task)
+            : mTask(task), mEvent(event) {
+        }
+
+        // Event overrides
+        void Wait() override {
+            mEvent->Wait();
+        }
+
+        bool IsSignaled() override {
+            return mEvent->IsSignaled();
+        }
+
+        void Signal() override {
+            return mEvent->Signal();
+        }
+
+        bool UnregisterAndExit() {
+            return mTask->UnregisterAndExit();
+        }
+
+      private:
+        std::shared_ptr<BudgetChangeTask> mTask;
+        std::shared_ptr<Event> mEvent;
+    };
 
     // static
     HRESULT ResidencyManager::CreateResidencyManager(const RESIDENCY_DESC& descriptor,
@@ -93,16 +175,20 @@ namespace gpgmm::d3d12 {
           mIsBudgetRestricted(descriptor.Budget > 0),
           mEvictBatchSize(descriptor.EvictBatchSize == 0 ? kDefaultEvictBatchSize
                                                          : descriptor.EvictBatchSize),
-          mIsUMA(descriptor.IsUMA) {
+          mIsUMA(descriptor.IsUMA),
+          mThreadPool(ThreadPool::Create()) {
         GPGMM_TRACE_EVENT_OBJECT_NEW(this);
 
         ASSERT(mDevice != nullptr);
         ASSERT(mAdapter != nullptr);
         ASSERT(mFence != nullptr);
+
+        StartBudgetChangeNotifications();
     }
 
     ResidencyManager::~ResidencyManager() {
         GPGMM_TRACE_EVENT_OBJECT_DESTROY(this);
+        StopBudgetChangeNotifications();
     }
 
     const char* ResidencyManager::GetTypename() const {
@@ -292,6 +378,8 @@ namespace gpgmm::d3d12 {
     }
 
     HRESULT ResidencyManager::UpdateVideoMemorySegments() {
+        std::lock_guard<std::mutex> lock(mMutex);
+
         DXGI_QUERY_VIDEO_MEMORY_INFO* queryVideoMemoryInfo =
             GetVideoMemoryInfo(DXGI_MEMORY_SEGMENT_GROUP_LOCAL);
 
@@ -405,10 +493,6 @@ namespace gpgmm::d3d12 {
         if (count > 1) {
             return E_NOTIMPL;
         }
-
-        // Keep video memory segments up-to-date. This must always happen because tests may
-        // want to execute a no-op to get the current budget and usage.
-        ReturnIfFailed(UpdateVideoMemorySegments());
 
         if (count == 0) {
             return S_OK;
@@ -537,6 +621,26 @@ namespace gpgmm::d3d12 {
         }
 
         return info;
+    }
+
+    void ResidencyManager::StartBudgetChangeNotifications() {
+        if (mBudgetChangeEvent == nullptr) {
+            std::shared_ptr<BudgetChangeTask> task =
+                std::make_shared<BudgetChangeTask>(this, mAdapter);
+            mBudgetChangeEvent =
+                std::make_shared<BudgetChangeEvent>(ThreadPool::PostTask(mThreadPool, task), task);
+        }
+        return;  // Already started
+    }
+
+    void ResidencyManager::StopBudgetChangeNotifications() {
+        if (mBudgetChangeEvent == nullptr) {
+            return;
+        }
+
+        mBudgetChangeEvent->UnregisterAndExit();
+        mBudgetChangeEvent->Wait();
+        mBudgetChangeEvent = nullptr;
     }
 
 }  // namespace gpgmm::d3d12
