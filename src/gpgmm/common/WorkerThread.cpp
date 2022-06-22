@@ -15,10 +15,12 @@
 #include "gpgmm/common/WorkerThread.h"
 
 #include "gpgmm/common/TraceEvent.h"
+#include "gpgmm/utils/Assert.h"
 #include "gpgmm/utils/PlatformUtils.h"
 
 #include <condition_variable>
 #include <functional>
+#include <queue>
 #include <thread>
 
 namespace gpgmm {
@@ -56,20 +58,76 @@ namespace gpgmm {
     class AsyncThreadPoolImpl final : public ThreadPool {
       public:
         AsyncThreadPoolImpl() = default;
-        ~AsyncThreadPoolImpl() override = default;
+
+        void checkAndRunPendingTasks() override {
+            if (mIsRunning) {
+                return;
+            }
+            mIsRunning = true;
+            mWorkerThread = std::thread([this]() { ProcessTasksInWorkerThread(); });
+        }
+
+        ~AsyncThreadPoolImpl() override {
+            if (!mIsRunning) {
+                return;
+            }
+
+            {
+                std::unique_lock<std::mutex> lock(mMutex);
+                mShouldTerminate = true;
+            }
+
+            mCondition.notify_all();
+            ASSERT(mWorkerThread.joinable());
+            mWorkerThread.join();
+        }
 
         std::shared_ptr<Event> postTaskImpl(std::shared_ptr<VoidCallback> callback,
                                             const char* name) override {
             std::shared_ptr<Event> event = std::make_shared<AsyncEventImpl>();
-            std::thread thread([callback, event, name]() {
-                SetThreadName(name);
-                TRACE_EVENT_METADATA1(TraceEventCategory::Metadata, "thread_name", "name", name);
-                (*callback)();
-                event->Signal();
-            });
-            thread.detach();
+            {
+                std::unique_lock<std::mutex> lock(mMutex);
+                checkAndRunPendingTasks();
+                mTaskQueue.push(std::make_pair(event, callback));
+            }
+
+            mCondition.notify_all();
             return event;
         }
+
+        void ProcessTasksInWorkerThread() {
+            TRACE_EVENT_METADATA1(TraceEventCategory::Metadata, "thread_name", "name",
+                                  "GPGMM_ThreadPoolBackgroundWorker");
+            while (true) {
+                std::unique_lock<std::mutex> lock(mMutex);
+                mCondition.wait(lock, [this] { return !mTaskQueue.empty() || mShouldTerminate; });
+                if (mShouldTerminate) {
+                    break;
+                }
+
+                auto task = mTaskQueue.front();
+                mTaskQueue.pop();
+
+                auto event = task.first;
+                auto callback = task.second;
+
+                (*callback)();
+                event->Signal();
+
+                lock.unlock();
+                mCondition.notify_all();
+            }
+        }
+
+        bool mIsRunning = false;
+
+        // Protect access from the main and worker thread for shared class members.
+        std::mutex mMutex;
+
+        bool mShouldTerminate = false;
+        std::condition_variable mCondition;
+        std::thread mWorkerThread;
+        std::queue<std::pair<std::shared_ptr<Event>, std::shared_ptr<VoidCallback>>> mTaskQueue;
     };
 
     // Event
