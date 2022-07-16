@@ -44,13 +44,14 @@ namespace gpgmm::d3d12 {
     // static
     HRESULT ResourceAllocation::CreateResourceAllocation(
         const RESOURCE_ALLOCATION_DESC& descriptor,
-        ResidencyManager* residencyManager,
-        MemoryAllocator* allocator,
-        MemoryBlock* block,
+        ResidencyManager* pResidencyManager,
+        MemoryAllocator* pAllocator,
+        Heap* pResourceHeap,
+        MemoryBlock* pBlock,
         ComPtr<ID3D12Resource> resource,
         ResourceAllocation** ppResourceAllocationOut) {
         std::unique_ptr<ResourceAllocation> resourceAllocation(new ResourceAllocation(
-            descriptor, residencyManager, allocator, block, std::move(resource)));
+            descriptor, pResidencyManager, pAllocator, pResourceHeap, pBlock, std::move(resource)));
 
         if (!descriptor.DebugName.empty()) {
             ReturnIfFailed(resourceAllocation->SetDebugName(descriptor.DebugName));
@@ -66,10 +67,11 @@ namespace gpgmm::d3d12 {
     ResourceAllocation::ResourceAllocation(const RESOURCE_ALLOCATION_DESC& desc,
                                            ResidencyManager* residencyManager,
                                            MemoryAllocator* allocator,
+                                           Heap* resourceHeap,
                                            MemoryBlock* block,
                                            ComPtr<ID3D12Resource> resource)
         : MemoryAllocation(allocator,
-                           desc.ResourceHeap,
+                           resourceHeap,
                            desc.HeapOffset,
                            desc.Method,
                            block,
@@ -77,7 +79,7 @@ namespace gpgmm::d3d12 {
           mResidencyManager(residencyManager),
           mResource(std::move(resource)),
           mOffsetFromResource(desc.OffsetFromResource) {
-        ASSERT(desc.ResourceHeap != nullptr);
+        ASSERT(resourceHeap != nullptr);
         GPGMM_TRACE_EVENT_OBJECT_NEW(this);
     }
 
@@ -103,7 +105,7 @@ namespace gpgmm::d3d12 {
         }
 
         if (mResidencyManager != nullptr) {
-            ReturnIfFailed(mResidencyManager->LockHeap(GetMemory()));
+            ReturnIfFailed(mResidencyManager->LockHeap(ToBackend(MemoryAllocation::GetMemory())));
         }
 
         // Range coordinates are always subresource-relative so the range should only be
@@ -133,7 +135,7 @@ namespace gpgmm::d3d12 {
         ASSERT(subresource == 0 || GetMethod() != AllocationMethod::kSubAllocatedWithin);
 
         if (mResidencyManager != nullptr) {
-            mResidencyManager->UnlockHeap(GetMemory());
+            mResidencyManager->UnlockHeap(ToBackend(MemoryAllocation::GetMemory()));
         }
 
         D3D12_RANGE newWrittenRange{};
@@ -149,7 +151,7 @@ namespace gpgmm::d3d12 {
     }
 
     bool ResourceAllocation::IsResident() const {
-        const Heap* resourceHeap = GetMemory();
+        const Heap* resourceHeap = GetMemory().Get();
         ASSERT(resourceHeap != nullptr);
         return resourceHeap->IsResident();
     }
@@ -171,7 +173,7 @@ namespace gpgmm::d3d12 {
         return "ResourceAllocation";
     }
 
-    Heap* ResourceAllocation::GetMemory() const {
+    ComPtr<Heap> ResourceAllocation::GetMemory() const {
         return ToBackend(MemoryAllocation::GetMemory());
     }
 

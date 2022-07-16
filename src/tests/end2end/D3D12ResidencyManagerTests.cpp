@@ -127,7 +127,7 @@ TEST_F(D3D12ResidencyManagerTests, CreateResourceHeap) {
     EXPECT_EQ(residencyManager->GetInfo().ResidentMemoryCount, 1u);
 
     ComPtr<ID3D12Heap> heap;
-    resourceHeap->As(&heap);
+    resourceHeap.As(&heap);
 
     EXPECT_NE(heap, nullptr);
 
@@ -163,18 +163,18 @@ TEST_F(D3D12ResidencyManagerTests, CreateResidencySet) {
     // Inserting from a valid allocation should always succeed.
     {
         ResidencySet set;
-        ASSERT_SUCCEEDED(set.Insert(allocation->GetMemory()));
-        ASSERT_SUCCEEDED(set.Insert(allocation->GetMemory()));
+        ASSERT_SUCCEEDED(set.Insert(allocation->GetMemory().Get()));
+        ASSERT_SUCCEEDED(set.Insert(allocation->GetMemory().Get()));
     }
 
     // Re-inserting allocation between two sets should always succeed.
     {
         ResidencySet setA;
-        ASSERT_SUCCEEDED(setA.Insert(allocation->GetMemory()));
+        ASSERT_SUCCEEDED(setA.Insert(allocation->GetMemory().Get()));
         ResidencySet setB(setA);
-        EXPECT_EQ(setA.Insert(allocation->GetMemory()), S_FALSE);
+        EXPECT_EQ(setA.Insert(allocation->GetMemory().Get()), S_FALSE);
         ResidencySet setC;
-        EXPECT_EQ(setC.Insert(allocation->GetMemory()), S_OK);
+        EXPECT_EQ(setC.Insert(allocation->GetMemory().Get()), S_OK);
     }
 }
 
@@ -360,7 +360,7 @@ TEST_F(D3D12ResidencyManagerTests, OverBudgetWithGrowth) {
         ASSERT_SUCCEEDED(resourceAllocator->CreateResource(
             bufferAllocationDesc, bufferDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, &allocation));
 
-        resourceHeaps.push_back(allocation->GetMemory());
+        resourceHeaps.push_back(allocation->GetMemory().Get());
         allocations.push_back(std::move(allocation));
     }
 

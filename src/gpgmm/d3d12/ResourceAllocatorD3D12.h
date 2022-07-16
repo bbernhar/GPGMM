@@ -551,7 +551,7 @@ namespace gpgmm::d3d12 {
             D3D12_HEAP_TYPE heapType,
             uint64_t heapAlignment);
 
-        HRESULT CreatePlacedResource(Heap* const resourceHeap,
+        HRESULT CreatePlacedResource(ComPtr<Heap> resourceHeap,
                                      uint64_t resourceOffset,
                                      const D3D12_RESOURCE_DESC* resourceDescriptor,
                                      const D3D12_CLEAR_VALUE* clearValue,
