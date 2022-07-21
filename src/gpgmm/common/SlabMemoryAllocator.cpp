@@ -158,11 +158,9 @@ namespace gpgmm {
                 continue;
             }
 
-            Slab* freeSlab = cache->FreeList.head()->value();
-            ASSERT(freeSlab != nullptr);
-
-            if (freeSlab->Allocation && freeSlab->Allocation->GetSize() >= slabSize) {
-                return freeSlab->Allocation->GetSize();
+            const Slab& freeSlab = cache->FreeList.back();
+            if (freeSlab.Allocation && freeSlab.Allocation->GetSize() >= slabSize) {
+                return freeSlab.Allocation->GetSize();
             }
         }
 
@@ -227,18 +225,17 @@ namespace gpgmm {
                 }
             }
 
-            pCache->FreeList.push_front(
-                new Slab(static_cast<uint64_t>(SafeDivide(slabSize, mBlockSize)), mBlockSize));
+            pCache->FreeList.push_back(
+                Slab(static_cast<uint64_t>(SafeDivide(slabSize, mBlockSize)), mBlockSize));
         }
 
-        Slab* pFreeSlab = pCache->FreeList.head()->value();
-        ASSERT(pFreeSlab != nullptr);
-        ASSERT(!pFreeSlab->IsFull());
+        Slab& pFreeSlab = pCache->FreeList.back();
+        ASSERT(!pFreeSlab.IsFull());
 
         std::unique_ptr<MemoryAllocation> subAllocation;
         GPGMM_TRY_ASSIGN(
             TrySubAllocateMemory(
-                &pFreeSlab->Allocator, mBlockSize, request.Alignment, request.NeverAllocate,
+                &pFreeSlab.Allocator, mBlockSize, request.Alignment, request.NeverAllocate,
                 [&](const auto& block) -> MemoryBase* {
                     // Re-use memory from the free slab.
                     if (pFreeSlab->Allocation != nullptr) {
@@ -288,7 +285,7 @@ namespace gpgmm {
         // Slab is referenced seperately from its underlying memory because the memory used by the
         // slab could be already allocated by another allocator. Only once the last block on the
         // slab is deallocated, does the slab release its memory.
-        pFreeSlab->AllocatedBlocks++;
+        pFreeSlab.AllocatedBlocks++;
 
         // Remember the last allocated slab size so if a subsequent allocation requests a new slab,
         // the next slab size will be larger than the previous slab size.
@@ -306,8 +303,8 @@ namespace gpgmm {
         // TODO: Measure if the slab allocation time remaining exceeds the prefetch memory task
         // time before deciding to prefetch.
         if ((request.AlwaysPrefetch || allowSlabPrefetch) && mNextSlabAllocationEvent == nullptr &&
-            pFreeSlab->GetUsedPercent() >= kSlabPrefetchUsageThreshold &&
-            pFreeSlab->GetBlockCount() >= kSlabPrefetchMinBlockCount) {
+            pFreeSlab.GetUsedPercent() >= kSlabPrefetchUsageThreshold &&
+            pFreeSlab.GetBlockCount() >= kSlabPrefetchMinBlockCount) {
             // If a subsequent TryAllocateMemory() uses a request size different than the current
             // request size, memory required for the next slab could be the wrong size. If so,
             // pre-fetching did not pay off and the pre-fetched memory will be de-allocated instead.
@@ -341,18 +338,18 @@ namespace gpgmm {
 
         // If the slab is now full, move it to the full-list so it does not remain the free-list
         // where de-allocate could mistakenly remove it from the wrong list.
-        if (pFreeSlab->IsFull()) {
-            pCache->FreeList.remove(pFreeSlab);
-            pCache->FullList.push_front(pFreeSlab);
+        if (pFreeSlab.IsFull()) {
+            pCache->FreeList.erase(pFreeSlab.index);
+            pCache->FullList.push_back(pFreeSlab);
         }
 
         // Assign the containing slab to the block so DeallocateMemory() knows how to release it.
         SlabBlock* blockInSlab = static_cast<SlabBlock*>(subAllocation->GetBlock());
-        blockInSlab->pSlab = pFreeSlab;
+        blockInSlab->pSlab = pFreeSlab.index;
 
         // Since the slab's block could reside in another allocated block, the allocation
         // offset must be made relative to the slab's underlying memory and not the slab itself.
-        const uint64_t offsetFromMemory = pFreeSlab->Allocation->GetOffset() + blockInSlab->Offset;
+        const uint64_t offsetFromMemory = pFreeSlab.Allocation->GetOffset() + blockInSlab->Offset;
 
         mInfo.UsedBlockCount++;
         mInfo.UsedBlockUsage += blockInSlab->Size;
@@ -376,8 +373,8 @@ namespace gpgmm {
         // Splice the slab from the full-list to free-list.
         if (slab->IsFull()) {
             SlabCache* cache = GetOrCreateCache(slab->Allocation->GetSize());
-            cache->FullList.remove(slab);
-            cache->FreeList.push_front(slab);
+            cache->FullList.erase(slab->index);
+            cache->FreeList.push_back(slab);
         }
 
         mInfo.UsedBlockCount--;
