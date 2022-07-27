@@ -33,7 +33,25 @@ namespace gpgmm {
         mFreeList.pHead = head;
     }
 
-    SlabBlockAllocator::~SlabBlockAllocator() {
+    SlabBlockAllocator::SlabBlockAllocator(const SlabBlockAllocator& other)
+        : mFreeList(other.mFreeList),
+          mBlockCount(other.mBlockCount),
+          mBlockSize(other.mBlockSize),
+          mNextFreeBlockIndex(other.mNextFreeBlockIndex) {
+    }
+
+    SlabBlockAllocator& SlabBlockAllocator::operator=(const SlabBlockAllocator& other) {
+        if (this == &other) {
+            return *this;
+        }
+        mFreeList = other.mFreeList;
+        mBlockCount = other.mBlockCount;
+        mBlockSize = other.mBlockSize;
+        mNextFreeBlockIndex = other.mNextFreeBlockIndex;
+        return *this;
+    }
+
+    void SlabBlockAllocator::ReleaseBlocks() {
         SlabBlock* head = mFreeList.pHead;
         while (head != nullptr) {
             ASSERT(head != nullptr);
@@ -41,6 +59,7 @@ namespace gpgmm {
             SafeDelete(head);
             head = next;
         }
+        mFreeList.pHead = nullptr;
     }
 
     MemoryBlock* SlabBlockAllocator::TryAllocateBlock(uint64_t requestSize, uint64_t alignment) {
