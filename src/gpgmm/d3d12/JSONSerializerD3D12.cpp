@@ -165,8 +165,7 @@ namespace gpgmm::d3d12 {
         dict.AddItem("SizeInBytes", desc.SizeInBytes);
         dict.AddItem("Alignment", desc.Alignment);
         dict.AddItem("HeapType", desc.HeapType);
-        dict.AddItem("AlwaysInBudget", desc.AlwaysInBudget);
-        dict.AddItem("IsExternal", desc.IsExternal);
+        dict.AddItem("HeapFlags", desc.HeapFlags);
         dict.AddItem("MemorySegment", desc.MemorySegment);
         dict.AddItem("DebugName", desc.DebugName);
         return dict;

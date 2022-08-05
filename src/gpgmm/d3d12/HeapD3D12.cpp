@@ -43,7 +43,7 @@ namespace gpgmm::d3d12 {
 
         // Ensure enough free memory exists before allocating to avoid an out-of-memory error
         // when over budget.
-        if (pResidencyManager != nullptr && descriptor.AlwaysInBudget) {
+        if (pResidencyManager != nullptr && descriptor.HeapFlags & HEAP_FLAG_ALWAYS_IN_BUDGET) {
             ReturnIfFailed(
                 pResidencyManager->EnsureInBudget(descriptor.SizeInBytes, memorySegmentGroup));
         }
@@ -56,7 +56,8 @@ namespace gpgmm::d3d12 {
 
         std::unique_ptr<Heap> heap(new Heap(std::move(pageable), memorySegmentGroup,
                                             descriptor.SizeInBytes, descriptor.Alignment,
-                                            descriptor.IsExternal));
+                                            descriptor.HeapFlags & HEAP_FLAG_CREATED_EXTERNAL,
+                                            descriptor.HeapFlags & HEAP_FLAG_ALREADY_ZEROED));
 
         if (pResidencyManager != nullptr) {
             ReturnIfFailed(pResidencyManager->InsertHeap(heap.get()));
@@ -76,12 +77,14 @@ namespace gpgmm::d3d12 {
                const DXGI_MEMORY_SEGMENT_GROUP& memorySegmentGroup,
                uint64_t size,
                uint64_t alignment,
-               bool isExternal)
+               bool isExternal,
+               bool IsZeroInitialized)
         : MemoryBase(size, alignment),
           mPageable(std::move(pageable)),
           mMemorySegmentGroup(memorySegmentGroup),
           mResidencyLock(0),
-          mIsExternal(isExternal) {
+          mIsExternal(isExternal),
+          mIsZeroInitialized(IsZeroInitialized) {
         ASSERT(mPageable != nullptr);
         if (!mIsExternal) {
             GPGMM_TRACE_EVENT_OBJECT_NEW(this);
@@ -150,5 +153,9 @@ namespace gpgmm::d3d12 {
 
     HRESULT STDMETHODCALLTYPE Heap::QueryInterface(REFIID riid, void** ppvObject) {
         return mPageable->QueryInterface(riid, ppvObject);
+    }
+
+    bool Heap::IsZeroInitialized() const {
+        return mIsZeroInitialized;
     }
 }  // namespace gpgmm::d3d12

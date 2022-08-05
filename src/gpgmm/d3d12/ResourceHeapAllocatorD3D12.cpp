@@ -63,8 +63,11 @@ namespace gpgmm::d3d12 {
         resourceHeapDesc.SizeInBytes = heapSize;
         resourceHeapDesc.DebugName = "Resource heap";
         resourceHeapDesc.Alignment = request.Alignment;
-        resourceHeapDesc.AlwaysInBudget = mAlwaysInBudget;
         resourceHeapDesc.HeapType = mHeapType;
+        resourceHeapDesc.HeapFlags = HEAP_FLAG_ALREADY_ZEROED;
+        if (mAlwaysInBudget) {
+            resourceHeapDesc.HeapFlags |= HEAP_FLAG_ALWAYS_IN_BUDGET;
+        }
 
         Heap* resourceHeap = nullptr;
         if (FAILED(Heap::CreateHeap(

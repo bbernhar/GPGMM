@@ -190,4 +190,8 @@ namespace gpgmm::d3d12 {
         return SetDebugObjectName(mResource.Get(), name);
     }
 
+    bool ResourceAllocation::IsZeroInitialized() const {
+        return ToBackend(MemoryAllocation::GetMemory())->IsZeroInitialized();
+    }
+
 }  // namespace gpgmm::d3d12

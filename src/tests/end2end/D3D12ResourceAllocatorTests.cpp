@@ -365,6 +365,16 @@ TEST_F(D3D12ResourceAllocatorTests, CreateBuffer) {
         ASSERT_NE(allocation, nullptr);
         EXPECT_EQ(allocation->GetDebugName(), allocationDesc.DebugName);
     }
+
+    // Creating a buffer should come from zero-initialized memory.
+    {
+        ComPtr<ResourceAllocation> allocation;
+        ASSERT_SUCCEEDED(
+            resourceAllocator->CreateResource({}, CreateBasicBufferDesc(kDefaultBufferSize),
+                                              D3D12_RESOURCE_STATE_COMMON, nullptr, &allocation));
+        ASSERT_NE(allocation, nullptr);
+        EXPECT_EQ(allocation->IsZeroInitialized(), true);
+    }
 }
 
 TEST_F(D3D12ResourceAllocatorTests, CreateSmallTexture) {

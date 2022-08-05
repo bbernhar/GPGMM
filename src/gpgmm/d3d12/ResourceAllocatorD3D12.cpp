@@ -1030,8 +1030,8 @@ namespace gpgmm::d3d12 {
         HEAP_DESC resourceHeapDesc = {};
         resourceHeapDesc.SizeInBytes = resourceInfo.SizeInBytes;
         resourceHeapDesc.Alignment = resourceInfo.Alignment;
-        resourceHeapDesc.IsExternal = true;
         resourceHeapDesc.HeapType = heapProperties.Type;
+        resourceHeapDesc.HeapFlags = HEAP_FLAG_CREATED_EXTERNAL;
 
         Heap* resourceHeap = nullptr;
         ReturnIfFailed(Heap::CreateHeap(
@@ -1104,8 +1104,11 @@ namespace gpgmm::d3d12 {
         resourceHeapDesc.SizeInBytes = info.SizeInBytes;
         resourceHeapDesc.DebugName = "Resource heap (committed)";
         resourceHeapDesc.Alignment = info.Alignment;
-        resourceHeapDesc.AlwaysInBudget = mIsAlwaysInBudget;
         resourceHeapDesc.HeapType = heapType;
+        resourceHeapDesc.HeapFlags |= HEAP_FLAG_ALREADY_ZEROED;
+        if (mIsAlwaysInBudget) {
+            resourceHeapDesc.HeapFlags |= HEAP_FLAG_ALWAYS_IN_BUDGET;
+        }
 
         // Since residency is per heap, every committed resource is wrapped in a heap object.
         Heap* resourceHeap = nullptr;

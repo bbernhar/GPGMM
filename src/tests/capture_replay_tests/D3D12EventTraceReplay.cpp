@@ -478,7 +478,6 @@ class D3D12EventTraceReplay : public D3D12TestBase, public CaptureReplayTestWith
                         HEAP_DESC resourceHeapDesc = {};
                         resourceHeapDesc.SizeInBytes = args["Heap"]["SizeInBytes"].asUInt64();
                         resourceHeapDesc.Alignment = args["Heap"]["Alignment"].asUInt64();
-                        resourceHeapDesc.IsExternal = args["IsExternal"].asBool();
                         resourceHeapDesc.HeapType = static_cast<D3D12_HEAP_TYPE>(
                             args["Heap"]["Properties"]["Type"].asInt());
 

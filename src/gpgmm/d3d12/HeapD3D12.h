@@ -19,6 +19,7 @@
 #include "gpgmm/common/Memory.h"
 #include "gpgmm/d3d12/DebugObjectD3D12.h"
 #include "gpgmm/d3d12/IUnknownImplD3D12.h"
+#include "gpgmm/utils/Flags.h"
 #include "gpgmm/utils/Limits.h"
 #include "gpgmm/utils/LinkedList.h"
 #include "gpgmm/utils/RefCount.h"
@@ -66,6 +67,33 @@ namespace gpgmm::d3d12 {
         MemoryPool* MemoryPool;
     };
 
+    /** \enum HEAP_FLAGS
+    Specify the options used for heap creation.
+    */
+    enum HEAP_FLAGS {
+
+        /** \brief Disables all heap flags.
+         */
+        HEAP_FLAG_NONE = 0x0,
+
+        /** \brief Determines if heap was already zero-initialized upon creation.
+         */
+        HEAP_FLAG_ALREADY_ZEROED = 0x1,
+
+        /** \brief Determines if the heap was externally created.
+
+        External heaps are not supported for residency.
+        */
+        HEAP_FLAG_CREATED_EXTERNAL = 0x2,
+
+        /** \brief Requires the heap to be created in budget.
+         */
+        HEAP_FLAG_ALWAYS_IN_BUDGET = 0x4,
+    };
+
+    using HEAP_FLAGS_TYPE = Flags<HEAP_FLAGS>;
+    DEFINE_OPERATORS_FOR_FLAGS(HEAP_FLAGS_TYPE)
+
     /** \struct HEAP_DESC
     Specifies properties of a managed heap.
     */
@@ -88,15 +116,9 @@ namespace gpgmm::d3d12 {
         */
         D3D12_HEAP_TYPE HeapType;
 
-        /** \brief Requires the heap to be created in budget.
+        /** \brief Specifies heap options.
          */
-        bool AlwaysInBudget;
-
-        /** \brief Specifies to leave the heap unmanaged by GPGMM.
-
-        External heaps are not supported for residency.
-        */
-        bool IsExternal;
+        HEAP_FLAGS_TYPE HeapFlags;
 
         /** \brief Specifies the memory segment to use for residency.
 
@@ -188,6 +210,12 @@ namespace gpgmm::d3d12 {
         */
         HEAP_INFO GetInfo() const;
 
+        /** \brief Determines if heap was zero-initialized upon creation.
+
+        \return True if zero-initialized.
+        */
+        bool IsZeroInitialized() const;
+
         // Testing only.
         bool IsInResidencyLRUCache() const;
         bool IsResidencyLocked() const;
@@ -200,7 +228,8 @@ namespace gpgmm::d3d12 {
              const DXGI_MEMORY_SEGMENT_GROUP& memorySegmentGroup,
              uint64_t size,
              uint64_t alignment,
-             bool isExternal);
+             bool isExternal,
+             bool IsZeroInitialized);
 
         HRESULT SetDebugNameImpl(const std::string& name) override;
         const char* GetTypename() const;
@@ -224,6 +253,7 @@ namespace gpgmm::d3d12 {
         DXGI_MEMORY_SEGMENT_GROUP mMemorySegmentGroup;
         RefCounted mResidencyLock;
         bool mIsExternal;
+        bool mIsZeroInitialized;
     };
 }  // namespace gpgmm::d3d12
 

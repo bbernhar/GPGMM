@@ -190,6 +190,18 @@ namespace gpgmm::d3d12 {
         */
         Heap* GetMemory() const;
 
+        /** \brief Determines if resource allocation was from a created from zero-initialized
+        memory.
+
+        If the resource is a render-target or depth-stencil texture, it still needs
+        proper initialization (ClearRenderTargetView, ClearDepthStencilView, DiscardResource or a
+        copy operation).
+
+        \return True if created from zero-initialized. False means it could contain
+        garbage data.
+        */
+        bool IsZeroInitialized() const;
+
       private:
         ResourceAllocation(const RESOURCE_ALLOCATION_DESC& desc,
                            ResidencyManager* residencyManager,
