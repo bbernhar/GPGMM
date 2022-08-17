@@ -22,15 +22,14 @@
 namespace gpgmm {
 
     // Helper for FindSegment to find the middle of a linked-list.
-    LinkNode<MemorySegment>* GetMiddleSegment(LinkNode<MemorySegment>* start,
-                                              LinkNode<MemorySegment>* end) {
-        LinkNode<MemorySegment>* slow = start;
-        LinkNode<MemorySegment>* fast = start->next();
+    iterator SegmentedMemoryAllocator::GetMiddleSegment(iterator start, iterator end) {
+        iterator slow = start;
+        iterator fast = ++start;
         while (fast != end) {
-            fast = fast->next();
+            fast++;
             if (fast != end) {
-                slow = slow->next();
-                fast = fast->next();
+                slow++;
+                fast++;
             }
         }
 
@@ -38,27 +37,26 @@ namespace gpgmm {
     }
 
     // Perform a slower, O(n) binary search, over a non-contigious array (linked-list).
-    LinkNode<MemorySegment>* FindSegment(LinkNode<MemorySegment>* start,
-                                         LinkNode<MemorySegment>* end,
-                                         uint64_t size) {
-        LinkNode<MemorySegment>* left = start;
-        LinkNode<MemorySegment>* right = end;
+    iterator SegmentedMemoryAllocator::FindSegment(iterator start, iterator end, uint64_t size) {
+        iterator left = start;
+        iterator right = end;
 
         while (left != right) {
-            LinkNode<MemorySegment>* middle = GetMiddleSegment(left, right);
-            if (middle == nullptr) {
-                return nullptr;
+            auto middle = GetMiddleSegment(left, right);
+            if (middle == mFreeSegments.end()) {
+                return middle;
             }
-            if (middle->value()->GetMemorySize() == size) {
+            if ((*middle).GetMemorySize() == size) {
                 return middle;
 
-            } else if (middle->value()->GetMemorySize() > size) {
+            } else if ((*middle).GetMemorySize() > size) {
                 // Smaller then middle, go left.
                 right = middle;
 
             } else {
                 // Larger then middle, go right.
-                left = middle->next();
+                middle++;
+                left = middle;
             }
         }
         return left;
@@ -70,9 +68,6 @@ namespace gpgmm {
     }
 
     MemorySegment::~MemorySegment() {
-        if (IsInList()) {
-            RemoveFromList();
-        }
         ReleasePool();
     }
 
@@ -89,34 +84,31 @@ namespace gpgmm {
     }
 
     MemorySegment* SegmentedMemoryAllocator::GetOrCreateFreeSegment(uint64_t memorySize) {
-        LinkNode<MemorySegment>* existingFreeSegment =
-            FindSegment(mFreeSegments.head(), mFreeSegments.tail(), memorySize);
+        auto existingFreeSegment =
+            FindSegment(mFreeSegments.begin(), mFreeSegments.end(), memorySize);
 
         // List is empty, append it at end.
-        if (existingFreeSegment == mFreeSegments.end()) {
-            ASSERT(mFreeSegments.empty());
-            MemorySegment* newFreeSegment = new MemorySegment{memorySize};
-            newFreeSegment->InsertAfter(mFreeSegments.tail());
-            return newFreeSegment;
+        if (mFreeSegments.empty()) {
+            mFreeSegments.emplace_back(memorySize);
+            return &mFreeSegments.back();
         }
-
-        ASSERT(existingFreeSegment->value() != nullptr);
 
         // Segment already exists, reuse it.
-        if (existingFreeSegment->value()->GetMemorySize() == memorySize) {
-            return existingFreeSegment->value();
+        if ((*existingFreeSegment).GetMemorySize() == memorySize) {
+            return &(*existingFreeSegment);
         }
-
-        MemorySegment* newFreeSegment = new MemorySegment{memorySize};
 
         // Or insert a new segment in sorted order.
-        if (memorySize > existingFreeSegment->value()->GetMemorySize()) {
-            newFreeSegment->InsertAfter(existingFreeSegment);
+        MemorySegment newMemorySegment{memorySize};
+        if (memorySize > (*existingFreeSegment).GetMemorySize()) {
+            existingFreeSegment++;
+            mFreeSegments.insert(existingFreeSegment, std::move(newMemorySegment));
         } else {
-            newFreeSegment->InsertBefore(existingFreeSegment);
+            existingFreeSegment--;
+            mFreeSegments.insert(existingFreeSegment, std::move(newMemorySegment));
         }
 
-        return newFreeSegment;
+        return &(*existingFreeSegment);
     }
 
     std::unique_ptr<MemoryAllocation> SegmentedMemoryAllocator::TryAllocateMemory(
@@ -176,10 +168,8 @@ namespace gpgmm {
         std::lock_guard<std::mutex> lock(mMutex);
 
         uint64_t totalBytesReleased = 0;
-        for (auto& node : mFreeSegments) {
-            MemorySegment* segment = node.value();
-            ASSERT(segment != nullptr);
-            const uint64_t bytesReleasedPerSegment = segment->ReleasePool(bytesToRelease);
+        for (auto& segment : mFreeSegments) {
+            const uint64_t bytesReleasedPerSegment = segment.ReleasePool(bytesToRelease);
             bytesToRelease -= bytesReleasedPerSegment;
             mInfo.FreeMemoryUsage -= bytesReleasedPerSegment;
             totalBytesReleased += bytesReleasedPerSegment;
