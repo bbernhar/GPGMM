@@ -648,32 +648,43 @@ namespace gpgmm::d3d12 {
             // heaps will more likely exceed the amount of bytes needed then smaller ones. But if
             // this causes over-trimming, then smaller heaps would be better.
             // TODO: Consider adding controls to change policy.
-            bytesReleased +=
-                mSmallBufferAllocatorOfType[resourceHeapTypeIndex]->ReleaseMemory(bytesToRelease);
+            ASSERT(CheckedAdd(
+                bytesReleased,
+                mSmallBufferAllocatorOfType[resourceHeapTypeIndex]->ReleaseMemory(bytesToRelease),
+                &bytesReleased));
             if (bytesReleased >= bytesToRelease) {
                 break;
             }
 
-            bytesReleased +=
-                mResourceHeapAllocatorOfType[resourceHeapTypeIndex]->ReleaseMemory(bytesToRelease);
+            ASSERT(CheckedAdd(
+                bytesReleased,
+                mResourceHeapAllocatorOfType[resourceHeapTypeIndex]->ReleaseMemory(bytesToRelease),
+                &bytesReleased));
             if (bytesReleased >= bytesToRelease) {
                 break;
             }
 
-            bytesReleased +=
-                mResourceAllocatorOfType[resourceHeapTypeIndex]->ReleaseMemory(bytesToRelease);
+            ASSERT(CheckedAdd(
+                bytesReleased,
+                mResourceAllocatorOfType[resourceHeapTypeIndex]->ReleaseMemory(bytesToRelease),
+                &bytesReleased));
             if (bytesReleased >= bytesToRelease) {
                 break;
             }
 
-            bytesReleased += mMSAAResourceHeapAllocatorOfType[resourceHeapTypeIndex]->ReleaseMemory(
-                bytesToRelease);
+            ASSERT(
+                CheckedAdd(bytesReleased,
+                           mMSAAResourceHeapAllocatorOfType[resourceHeapTypeIndex]->ReleaseMemory(
+                               bytesToRelease),
+                           &bytesReleased));
             if (bytesReleased >= bytesToRelease) {
                 break;
             }
 
-            bytesReleased +=
-                mMSAAResourceAllocatorOfType[resourceHeapTypeIndex]->ReleaseMemory(bytesToRelease);
+            ASSERT(CheckedAdd(
+                bytesReleased,
+                mMSAAResourceAllocatorOfType[resourceHeapTypeIndex]->ReleaseMemory(bytesToRelease),
+                &bytesReleased));
             if (bytesReleased >= bytesToRelease) {
                 break;
             }
@@ -800,7 +811,8 @@ namespace gpgmm::d3d12 {
         // Apply extra padding to the resource heap size, if specified.
         // Padding can only be applied to standalone non-committed resources.
         if (GPGMM_UNLIKELY(requiresPadding)) {
-            request.SizeInBytes += allocationDescriptor.RequireResourceHeapPadding;
+            ASSERT(CheckedAdd(request.SizeInBytes, allocationDescriptor.RequireResourceHeapPadding,
+                              &request.SizeInBytes));
             if (!neverSubAllocate) {
                 DebugLog() << "Sub-allocation disabled when padding is requested.";
                 neverSubAllocate = true;
@@ -990,9 +1002,9 @@ namespace gpgmm::d3d12 {
         // Using committed resources will create a tightly allocated resource allocations.
         // This means the block and heap size should be equal (modulo driver padding).
         const uint64_t allocationSize = resourceHeap->GetSize();
-        mInfo.UsedMemoryUsage += allocationSize;
-        mInfo.UsedMemoryCount++;
-        mInfo.UsedBlockUsage += allocationSize;
+        ASSERT(CheckedAdd(mInfo.UsedMemoryUsage, allocationSize, &mInfo.UsedMemoryUsage));
+        ASSERT(CheckedAdd(mInfo.UsedMemoryCount, 1u, &mInfo.UsedMemoryCount));
+        ASSERT(CheckedAdd(mInfo.UsedBlockUsage, allocationSize, &mInfo.UsedBlockUsage));
 
         RESOURCE_ALLOCATION_DESC allocationDesc = {};
         allocationDesc.HeapOffset = kInvalidOffset;
@@ -1046,9 +1058,9 @@ namespace gpgmm::d3d12 {
             },
             &resourceHeap));
 
-        mInfo.UsedMemoryUsage += resourceInfo.SizeInBytes;
-        mInfo.UsedMemoryCount++;
-        mInfo.UsedBlockUsage += resourceInfo.SizeInBytes;
+        ASSERT(CheckedAdd(mInfo.UsedMemoryUsage, resourceInfo.SizeInBytes, &mInfo.UsedMemoryUsage));
+        ASSERT(CheckedAdd(mInfo.UsedMemoryCount, 1u, &mInfo.UsedMemoryCount));
+        ASSERT(CheckedAdd(mInfo.UsedBlockUsage, resourceInfo.SizeInBytes, &mInfo.UsedBlockUsage));
 
         RESOURCE_ALLOCATION_DESC allocationDesc = {};
         allocationDesc.HeapOffset = kInvalidSize;
@@ -1166,21 +1178,24 @@ namespace gpgmm::d3d12 {
 
         GPGMM_TRACE_EVENT_METRIC(
             "GPU allocation utilization (%)",
-            SafeDivide(result.UsedBlockUsage, result.UsedMemoryUsage + result.FreeMemoryUsage) *
+            SafeDivide(result.UsedBlockUsage,
+                       CheckedAdd(result.UsedMemoryUsage, result.FreeMemoryUsage)) *
                 100);
 
         GPGMM_TRACE_EVENT_METRIC("GPU allocation free (MB)",
                                  GPGMM_BYTES_TO_MB(result.FreeMemoryUsage));
 
-        GPGMM_TRACE_EVENT_METRIC(
-            "GPU allocation prefetch coverage (%)",
-            SafeDivide(result.PrefetchedMemoryMissesEliminated,
-                       result.PrefetchedMemoryMisses + result.PrefetchedMemoryMissesEliminated) *
-                100);
+        GPGMM_TRACE_EVENT_METRIC("GPU allocation prefetch coverage (%)",
+                                 SafeDivide(result.PrefetchedMemoryMissesEliminated,
+                                            CheckedAdd(result.PrefetchedMemoryMisses,
+                                                       result.PrefetchedMemoryMissesEliminated)) *
+                                     100);
 
         GPGMM_TRACE_EVENT_METRIC(
             "GPU allocation size cache hits (%)",
-            SafeDivide(result.SizeCacheHits, result.SizeCacheMisses + result.SizeCacheHits) * 100);
+            SafeDivide(result.SizeCacheHits,
+                       CheckedAdd(result.SizeCacheMisses, result.SizeCacheHits)) *
+                100);
 
         return result;
     }

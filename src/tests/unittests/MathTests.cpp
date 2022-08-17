@@ -74,3 +74,25 @@ TEST(MathTests, AlignTo) {
     // Align UINT64_MAX to POT multiple.
     ASSERT_EQ(AlignTo(static_cast<uint64_t>(0xFFFFFFFFFFFFFFFF), 1ull), 0xFFFFFFFFFFFFFFFFull);
 }
+
+TEST(MathTests, CheckedAdd) {
+    const uint64_t umax = std::numeric_limits<uint64_t>::max();
+    const uint64_t umin = std::numeric_limits<uint64_t>::min();
+
+    uint64_t sum;
+    EXPECT_FALSE(CheckedAdd(umax, umax, &sum));
+    EXPECT_TRUE(CheckedAdd(umin, static_cast<uint64_t>(-1), &sum));
+    EXPECT_EQ(sum, umax);
+    EXPECT_FALSE(CheckedAdd(umax, 1ull, &sum));
+    EXPECT_EQ(CheckedAdd(1ull, 2ull), 3ull);
+}
+
+TEST(MathTests, CheckedSub) {
+    const uint64_t umax = std::numeric_limits<uint64_t>::max();
+    const uint64_t umin = std::numeric_limits<uint64_t>::min();
+
+    uint64_t sum;
+    EXPECT_TRUE(CheckedSub(umax, umax, &sum));
+    EXPECT_FALSE(CheckedSub(umin, static_cast<uint64_t>(-1), &sum));
+    EXPECT_TRUE(CheckedSub(umax, 1ull, &sum));
+}

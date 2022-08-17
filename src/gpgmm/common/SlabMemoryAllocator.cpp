@@ -370,8 +370,8 @@ namespace gpgmm {
         // offset must be made relative to the slab's underlying memory and not the slab itself.
         const uint64_t offsetFromMemory = pFreeSlab->Allocation.GetOffset() + blockInSlab->Offset;
 
-        mInfo.UsedBlockCount++;
-        mInfo.UsedBlockUsage += blockInSlab->Size;
+        ASSERT(CheckedAdd(mInfo.UsedBlockCount, 1u, &mInfo.UsedBlockCount));
+        ASSERT(CheckedAdd(mInfo.UsedBlockUsage, blockInSlab->Size, &mInfo.UsedBlockUsage));
 
         return std::make_unique<MemoryAllocation>(this, subAllocation->GetMemory(),
                                                   offsetFromMemory, AllocationMethod::kSubAllocated,
@@ -398,8 +398,8 @@ namespace gpgmm {
                                     /*pDstList*/ &pCache->FreeList);
         }
 
-        mInfo.UsedBlockCount--;
-        mInfo.UsedBlockUsage -= blockInSlab->Size;
+        ASSERT(CheckedSub(mInfo.UsedBlockCount, 1u, &mInfo.UsedBlockCount));
+        ASSERT(CheckedSub(mInfo.UsedBlockUsage, blockInSlab->Size, &mInfo.UsedBlockUsage));
 
         pSlab->Allocator.DeallocateBlock(blockInSlab);
         pSlab->UsedBlocksPerSlab--;

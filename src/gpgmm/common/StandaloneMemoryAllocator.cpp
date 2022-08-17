@@ -15,6 +15,7 @@
 #include "gpgmm/common/StandaloneMemoryAllocator.h"
 
 #include "gpgmm/common/TraceEvent.h"
+#include "gpgmm/utils/Math.h"
 
 namespace gpgmm {
 
@@ -34,8 +35,8 @@ namespace gpgmm {
         std::unique_ptr<MemoryAllocation> allocation;
         GPGMM_TRY_ASSIGN(GetNextInChain()->TryAllocateMemory(request), allocation);
 
-        mInfo.UsedBlockCount++;
-        mInfo.UsedBlockUsage += request.SizeInBytes;
+        ASSERT(CheckedAdd(mInfo.UsedBlockCount, 1u, &mInfo.UsedBlockCount));
+        ASSERT(CheckedAdd(mInfo.UsedBlockUsage, request.SizeInBytes, &mInfo.UsedBlockUsage));
 
         return std::make_unique<MemoryAllocation>(
             this, allocation->GetMemory(), /*offset*/ 0, allocation->GetMethod(),
@@ -48,8 +49,8 @@ namespace gpgmm {
         std::lock_guard<std::mutex> lock(mMutex);
 
         MemoryBlock* block = allocation->GetBlock();
-        mInfo.UsedBlockCount--;
-        mInfo.UsedBlockUsage -= block->Size;
+        ASSERT(CheckedSub(mInfo.UsedBlockCount, 1u, &mInfo.UsedBlockCount));
+        ASSERT(CheckedSub(mInfo.UsedBlockUsage, block->Size, &mInfo.UsedBlockUsage));
 
         SafeDelete(block);
         GetNextInChain()->DeallocateMemory(std::move(allocation));

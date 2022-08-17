@@ -17,10 +17,10 @@
 #define GPGMM_UTILS_MATH_H_
 
 #include "Assert.h"
+#include "Compiler.h"
 
 #include <cstddef>
 #include <cstdint>
-
 #include <limits>
 
 namespace gpgmm {
@@ -57,6 +57,50 @@ namespace gpgmm {
         } else {
             return dividend / static_cast<double>(divisor);
         }
+    }
+
+    // Returns False if adding two unsigned integers wrap.
+    template <typename T>
+    constexpr bool CheckedAdd(T a, T b, T* result) {
+        static_assert(std::is_integral<T>::value, "Type must be integral");
+        static_assert(std::is_unsigned<T>::value, "Type must be unsigned");
+        if (GPGMM_UNLIKELY(std::numeric_limits<T>::max() - a < b)) {
+            return false;
+        }
+        *result = static_cast<T>(a + b);
+        return true;
+    }
+
+    // Returns zero if adding two unsigned integers wrap.
+    template <typename T>
+    constexpr T CheckedAdd(T a, T b) {
+        T result;
+        if (!CheckedAdd(a, b, &result)) {
+            return {};
+        }
+        return result;
+    }
+
+    // Returns False if subtracting two unsigned integers wrap.
+    template <typename T>
+    constexpr bool CheckedSub(T a, T b, T* result) {
+        static_assert(std::is_integral<T>::value, "Type must be integral");
+        static_assert(std::is_unsigned<T>::value, "Type must be unsigned");
+        if (GPGMM_UNLIKELY(b > a)) {
+            return false;
+        }
+        *result = static_cast<T>(a - b);
+        return true;
+    }
+
+    // Returns zero if adding two unsigned integers wrap.
+    template <typename T>
+    constexpr T CheckedSub(T a, T b) {
+        T result;
+        if (!CheckedSub(a, b, &result)) {
+            return {};
+        }
+        return result;
     }
 
 }  // namespace gpgmm
