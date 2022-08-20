@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <gpgmm_d3d12.h>
+#include "src/include/gpgmm_d3d12_min.h"
 
 #include <d3d12.h>
 #include <dxgi1_4.h>

@@ -24,7 +24,7 @@ group("samples") {
 }
 
 executable("D3D12Sample") {
-  deps = [ "${gpgmm_root_dir}:gpgmm" ]
+  # deps = [ "${gpgmm_root_dir}:gpgmm" ]
   sources = [ "D3D12Sample.cpp" ]
   libs = [
     "d3d12.lib",
