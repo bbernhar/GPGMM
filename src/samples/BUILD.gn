@@ -23,8 +23,17 @@ group("samples") {
   }
 }
 
+source_set("gpgmm_min") {
+  sources = [
+    "${gpgmm_root_dir}/src/include/gpgmm_min.cpp",
+    "${gpgmm_root_dir}/src/include/gpgmm_min.h",
+    "${gpgmm_root_dir}/src/include/gpgmm_d3d12_min.cpp",
+    "${gpgmm_root_dir}/src/include/gpgmm_d3d12_min.h",
+  ]
+}
+
 executable("D3D12Sample") {
-  # deps = [ "${gpgmm_root_dir}:gpgmm" ]
+  deps = [ ":gpgmm_min" ]
   sources = [ "D3D12Sample.cpp" ]
   libs = [
     "d3d12.lib",
