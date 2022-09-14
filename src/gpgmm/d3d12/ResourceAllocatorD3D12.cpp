@@ -569,6 +569,70 @@ namespace gpgmm::d3d12 {
         }
     }
 
+    std::unique_ptr<MemoryAllocator> ResourceAllocator::CreatePoolAllocator(
+        ALLOCATOR_ALGORITHM algorithm,
+        uint64_t minMemorySize,
+        uint64_t memoryAlignment,
+        bool isAlwaysOnDemand,
+        std::unique_ptr<MemoryAllocator> underlyingAllocator) {
+        if (!isAlwaysOnDemand) {
+            switch (algorithm) {
+                case ALLOCATOR_ALGORITHM_FIXED_POOL: {
+                    return std::make_unique<PooledMemoryAllocator>(minMemorySize, memoryAlignment,
+                                                                   std::move(underlyingAllocator));
+                }
+                case ALLOCATOR_ALGORITHM_SEGMENTED_POOL: {
+                    return std::make_unique<SegmentedMemoryAllocator>(
+                        std::move(underlyingAllocator), memoryAlignment);
+                }
+                default: {
+                    UNREACHABLE();
+                    return {};
+                }
+            }
+        }
+
+        return underlyingAllocator;
+    }
+
+    std::unique_ptr<MemoryAllocator> ResourceAllocator::CreateSubAllocator(
+        ALLOCATOR_ALGORITHM algorithm,
+        uint64_t minMemorySize,
+        uint64_t memoryAlignment,
+        double memoryFragmentationLimit,
+        double memoryGrowthFactor,
+        bool isPrefetchAllowed,
+        std::unique_ptr<MemoryAllocator> underlyingAllocator) {
+        const uint64_t maxResourceHeapSize = mCaps->GetMaxResourceHeapSize();
+        switch (algorithm) {
+            case ALLOCATOR_ALGORITHM_BUDDY_SYSTEM: {
+                return std::make_unique<BuddyMemoryAllocator>(
+                    /*systemSize*/ PrevPowerOfTwo(maxResourceHeapSize),
+                    /*memorySize*/ std::max(memoryAlignment, minMemorySize),
+                    /*memoryAlignment*/ memoryAlignment,
+                    /*memoryAllocator*/ std::move(underlyingAllocator));
+            }
+            case ALLOCATOR_ALGORITHM_SLAB: {
+                return std::make_unique<SlabCacheAllocator>(
+                    /*maxSlabSize*/ PrevPowerOfTwo(maxResourceHeapSize),
+                    /*minSlabSize*/ std::max(memoryAlignment, minMemorySize),
+                    /*slabAlignment*/ memoryAlignment,
+                    /*slabFragmentationLimit*/ memoryFragmentationLimit,
+                    /*allowSlabPrefetch*/ isPrefetchAllowed,
+                    /*slabGrowthFactor*/ memoryGrowthFactor,
+                    /*memoryAllocator*/ std::move(underlyingAllocator));
+            }
+            case ALLOCATOR_ALGORITHM_DEDICATED: {
+                return std::make_unique<DedicatedMemoryAllocator>(
+                    /*memoryAllocator*/ std::move(underlyingAllocator));
+            }
+            default: {
+                UNREACHABLE();
+                return {};
+            }
+        }
+    }
+
     std::unique_ptr<MemoryAllocator> ResourceAllocator::CreateResourceHeapSubAllocator(
         const ALLOCATOR_DESC& descriptor,
         D3D12_HEAP_FLAGS heapFlags,
@@ -577,34 +641,12 @@ namespace gpgmm::d3d12 {
         std::unique_ptr<MemoryAllocator> pooledOrNonPooledAllocator =
             CreateResourceHeapAllocator(descriptor, heapFlags, heapProperties, heapAlignment);
 
-        const uint64_t maxResourceHeapSize = mCaps->GetMaxResourceHeapSize();
-        switch (descriptor.SubAllocationAlgorithm) {
-            case ALLOCATOR_ALGORITHM_BUDDY_SYSTEM: {
-                return std::make_unique<BuddyMemoryAllocator>(
-                    /*systemSize*/ PrevPowerOfTwo(maxResourceHeapSize),
-                    /*memorySize*/ std::max(heapAlignment, descriptor.PreferredResourceHeapSize),
-                    /*memoryAlignment*/ heapAlignment,
-                    /*memoryAllocator*/ std::move(pooledOrNonPooledAllocator));
-            }
-            case ALLOCATOR_ALGORITHM_SLAB: {
-                return std::make_unique<SlabCacheAllocator>(
-                    /*maxSlabSize*/ PrevPowerOfTwo(maxResourceHeapSize),
-                    /*minSlabSize*/ std::max(heapAlignment, descriptor.PreferredResourceHeapSize),
-                    /*slabAlignment*/ heapAlignment,
-                    /*slabFragmentationLimit*/ descriptor.MemoryFragmentationLimit,
-                    /*allowSlabPrefetch*/
-                    !(descriptor.Flags & ALLOCATOR_FLAG_DISABLE_MEMORY_PREFETCH),
-                    /*slabGrowthFactor*/ descriptor.MemoryGrowthFactor,
-                    /*memoryAllocator*/ std::move(pooledOrNonPooledAllocator));
-            }
-            case ALLOCATOR_ALGORITHM_DEDICATED:
-                return std::make_unique<DedicatedMemoryAllocator>(
-                    /*memoryAllocator*/ std::move(pooledOrNonPooledAllocator));
-            default: {
-                UNREACHABLE();
-                return {};
-            }
-        }
+        return CreateSubAllocator(descriptor.SubAllocationAlgorithm,
+                                  std::max(heapAlignment, descriptor.PreferredResourceHeapSize),
+                                  heapAlignment, descriptor.MemoryFragmentationLimit,
+                                  descriptor.MemoryGrowthFactor,
+                                  !(descriptor.Flags & ALLOCATOR_FLAG_DISABLE_MEMORY_PREFETCH),
+                                  std::move(pooledOrNonPooledAllocator));
     }
 
     std::unique_ptr<MemoryAllocator> ResourceAllocator::CreateResourceHeapAllocator(
@@ -616,25 +658,9 @@ namespace gpgmm::d3d12 {
             std::make_unique<ResourceHeapAllocator>(mResidencyManager.Get(), mDevice.Get(),
                                                     heapProperties, heapFlags, mIsAlwaysInBudget);
 
-        if (!(descriptor.Flags & ALLOCATOR_FLAG_ALWAYS_ON_DEMAND)) {
-            switch (descriptor.PoolAlgorithm) {
-                case ALLOCATOR_ALGORITHM_FIXED_POOL: {
-                    return std::make_unique<PooledMemoryAllocator>(
-                        descriptor.PreferredResourceHeapSize, heapAlignment,
-                        std::move(resourceHeapAllocator));
-                }
-                case ALLOCATOR_ALGORITHM_SEGMENTED_POOL: {
-                    return std::make_unique<SegmentedMemoryAllocator>(
-                        std::move(resourceHeapAllocator), heapAlignment);
-                }
-                default: {
-                    UNREACHABLE();
-                    return {};
-                }
-            }
-        }
-
-        return resourceHeapAllocator;
+        return CreatePoolAllocator(
+            descriptor.PoolAlgorithm, descriptor.PreferredResourceHeapSize, heapAlignment,
+            (descriptor.Flags & ALLOCATOR_FLAG_ALWAYS_ON_DEMAND), std::move(resourceHeapAllocator));
     }
 
     std::unique_ptr<MemoryAllocator> ResourceAllocator::CreateSmallBufferAllocator(
@@ -647,46 +673,18 @@ namespace gpgmm::d3d12 {
         // https://docs.microsoft.com/en-us/windows/win32/api/d3d12/ns-d3d12-d3d12_resource_desc
         std::unique_ptr<MemoryAllocator> smallBufferOnlyAllocator =
             std::make_unique<BufferAllocator>(this, heapProperties, heapFlags,
-                                              D3D12_RESOURCE_FLAG_NONE, initialResourceState,
-                                              /*bufferSize*/ heapAlignment,
-                                              /*bufferAlignment*/ heapAlignment);
+                                              D3D12_RESOURCE_FLAG_NONE, initialResourceState);
 
-        std::unique_ptr<MemoryAllocator> pooledOrNonPooledAllocator;
-        if (!(descriptor.Flags & ALLOCATOR_FLAG_ALWAYS_ON_DEMAND)) {
-            // Small buffers always use a 64KB heap.
-            pooledOrNonPooledAllocator = std::make_unique<PooledMemoryAllocator>(
-                heapAlignment, heapAlignment, std::move(smallBufferOnlyAllocator));
-        } else {
-            pooledOrNonPooledAllocator = std::move(smallBufferOnlyAllocator);
-        }
+        std::unique_ptr<MemoryAllocator> pooledOrNonPooledAllocator =
+            CreatePoolAllocator(descriptor.PoolAlgorithm, heapAlignment, heapAlignment,
+                                (descriptor.Flags & ALLOCATOR_FLAG_ALWAYS_ON_DEMAND),
+                                std::move(smallBufferOnlyAllocator));
 
-        switch (descriptor.SubAllocationAlgorithm) {
-            case ALLOCATOR_ALGORITHM_BUDDY_SYSTEM: {
-                return std::make_unique<BuddyMemoryAllocator>(
-                    /*systemSize*/ heapAlignment,
-                    /*memorySize*/ heapAlignment,
-                    /*memoryAlignment*/ heapAlignment,
-                    /*memoryAllocator*/ std::move(pooledOrNonPooledAllocator));
-            }
-            case ALLOCATOR_ALGORITHM_SLAB: {
-                // Any amount of fragmentation must be allowed for small buffers since the resource
-                // heap size cannot change.
-                return std::make_unique<SlabCacheAllocator>(
-                    /*maxSlabSize*/ heapAlignment,
-                    /*slabSize*/ heapAlignment,
-                    /*slabAlignment*/ heapAlignment,
-                    /*slabFragmentationLimit*/ 1,
-                    /*allowSlabPrefetch*/ false,
-                    /*slabMemoryGrowth*/ 1,
-                    /*memoryAllocator*/ std::move(pooledOrNonPooledAllocator));
-            }
-            case ALLOCATOR_ALGORITHM_DEDICATED:
-                return std::make_unique<DedicatedMemoryAllocator>(
-                    /*memoryAllocator*/ std::move(pooledOrNonPooledAllocator));
-            default:
-                UNREACHABLE();
-                return {};
-        }
+        return CreateSubAllocator(descriptor.SubAllocationAlgorithm,
+                                  std::max(heapAlignment, descriptor.PreferredResourceHeapSize),
+                                  heapAlignment,
+                                  /*memoryFragmentationLimit*/ 1, descriptor.MemoryGrowthFactor,
+                                  false, std::move(pooledOrNonPooledAllocator));
     }
 
     ResourceAllocator::~ResourceAllocator() {

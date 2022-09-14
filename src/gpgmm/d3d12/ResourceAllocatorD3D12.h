@@ -628,6 +628,22 @@ namespace gpgmm::d3d12 {
             uint64_t heapAlignment,
             D3D12_RESOURCE_STATES initialResourceState);
 
+        std::unique_ptr<MemoryAllocator> CreatePoolAllocator(
+            ALLOCATOR_ALGORITHM algorithm,
+            uint64_t minMemorySize,
+            uint64_t memoryAlignment,
+            bool isAlwaysOnDemand,
+            std::unique_ptr<MemoryAllocator> underlyingAllocator);
+
+        std::unique_ptr<MemoryAllocator> CreateSubAllocator(
+            ALLOCATOR_ALGORITHM algorithm,
+            uint64_t minMemorySize,
+            uint64_t memoryAlignment,
+            double memoryFragmentationLimit,
+            double memoryGrowthFactor,
+            bool isPrefetchAllowed,
+            std::unique_ptr<MemoryAllocator> underlyingAllocator);
+
         HRESULT CreatePlacedResource(Heap* const resourceHeap,
                                      uint64_t resourceOffset,
                                      const D3D12_RESOURCE_DESC* resourceDescriptor,
