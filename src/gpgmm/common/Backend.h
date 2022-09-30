@@ -18,7 +18,7 @@
 namespace gpgmm {
 
     // Forward declare common types.
-    class MemoryBase;
+    class IMemoryBase;
     class MemoryAllocation;
 
     template <typename CommonType, typename BackendTrait>
@@ -27,7 +27,7 @@ namespace gpgmm {
     // Define common types.
 
     template <typename BackendTrait>
-    struct CommonTrait<MemoryBase, BackendTrait> {
+    struct CommonTrait<IMemoryBase, BackendTrait> {
         using CommonType = typename BackendTrait::MemoryType;
     };
 

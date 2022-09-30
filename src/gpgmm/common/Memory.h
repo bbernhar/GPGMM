@@ -17,6 +17,7 @@
 
 #include "gpgmm/common/Object.h"
 #include "gpgmm/utils/RefCount.h"
+#include "include/gpgmm.h"
 
 namespace gpgmm {
 
@@ -36,16 +37,7 @@ namespace gpgmm {
         explicit MemoryBase(uint64_t size, uint64_t alignment);
         virtual ~MemoryBase() override;
 
-        /** \brief Return the size of the memory object.
-
-        \return Size, in bytes, of the memory object.
-        */
         uint64_t GetSize() const;
-
-        /** \brief Return the alignment of the memory object.
-
-        \return Alignment, in bytes, of the memory object.
-        */
         uint64_t GetAlignment() const;
 
         /** \brief Get the memory pool managing the object.

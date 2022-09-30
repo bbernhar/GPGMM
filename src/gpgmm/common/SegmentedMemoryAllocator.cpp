@@ -143,10 +143,11 @@ namespace gpgmm {
         mInfo.UsedMemoryCount++;
         mInfo.UsedMemoryUsage += allocation.GetSize();
 
-        MemoryBase* memory = allocation.GetMemory();
+        IMemoryBase* memory = allocation.GetMemory();
         ASSERT(memory != nullptr);
 
-        memory->SetPool(segment);
+        MemoryBase* memoryObj = reinterpret_cast<MemoryBase*>(memory);
+        memoryObj->SetPool(segment);
 
         return std::make_unique<MemoryAllocation>(this, memory, request.SizeInBytes);
     }
@@ -163,10 +164,11 @@ namespace gpgmm {
         mInfo.UsedMemoryCount--;
         mInfo.UsedMemoryUsage -= allocationSize;
 
-        MemoryBase* memory = allocation->GetMemory();
+        IMemoryBase* memory = allocation->GetMemory();
         ASSERT(memory != nullptr);
 
-        MemoryPool* pool = memory->GetPool();
+        MemoryBase* memoryObj = reinterpret_cast<MemoryBase*>(memory);
+        MemoryPool* pool = memoryObj->GetPool();
         ASSERT(pool != nullptr);
 
         pool->ReturnToPool(

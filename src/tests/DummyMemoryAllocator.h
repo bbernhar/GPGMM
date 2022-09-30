@@ -21,6 +21,27 @@
 
 namespace gpgmm {
 
+    class DummyMemory : public IMemoryBase, public MemoryBase {
+      public:
+        DummyMemory(uint64_t size, uint64_t alignment) : MemoryBase(size, alignment) {
+        }
+
+        // IMemoryBase
+        uint64_t GetSize() const override {
+            return MemoryBase::GetSize();
+        }
+        uint64_t GetAlignment() const override {
+            return MemoryBase::GetAlignment();
+        }
+        void AddSubAllocationRef() override {
+            return MemoryBase::AddSubAllocationRef();
+        }
+
+        bool RemoveSubAllocationRef() override {
+            return MemoryBase::RemoveSubAllocationRef();
+        }
+    };
+
     class DummyMemoryAllocator : public MemoryAllocator {
       public:
         DummyMemoryAllocator() = default;
@@ -43,7 +64,7 @@ namespace gpgmm {
             mInfo.UsedMemoryUsage += request.SizeInBytes;
 
             return std::make_unique<MemoryAllocation>(
-                this, new MemoryBase(request.SizeInBytes, request.Alignment), request.SizeInBytes);
+                this, new DummyMemory(request.SizeInBytes, request.Alignment), request.SizeInBytes);
         }
 
         void DeallocateMemory(std::unique_ptr<MemoryAllocation> allocation) override {

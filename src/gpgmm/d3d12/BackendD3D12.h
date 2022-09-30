@@ -19,11 +19,11 @@
 
 namespace gpgmm::d3d12 {
 
-    class Heap;
+    class IHeap;
     class ResourceAllocation;
 
     struct BackendTrait {
-        using MemoryType = Heap;
+        using MemoryType = IHeap;
         using AllocationType = ResourceAllocation;
     };
 

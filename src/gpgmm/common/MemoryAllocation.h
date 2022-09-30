@@ -17,59 +17,13 @@
 #define GPGMM_COMMON_MEMORYALLOCATION_H_
 
 #include "gpgmm/utils/Limits.h"
+#include "include/gpgmm.h"
 #include "include/gpgmm_export.h"
 
 namespace gpgmm {
 
-    /** \enum AllocationMethod
-    Represents how memory was allocated.
-    */
-    enum class AllocationMethod {
-
-        /** \brief Not yet allocated or invalid.
-
-        This is an invalid state that assigned temporary before the actual method is known.
-        */
-        kUndefined = 0,
-
-        /** \brief Not sub-divided.
-
-        One and only one allocation exists for the memory.
-        */
-        kStandalone = 1,
-
-        /** \brief Sub-divided using one or more allocations.
-
-        Underlying memory will be broken up into one or more memory allocations.
-        */
-        kSubAllocated = 2,
-
-        /** \brief Sub-divided within a single memory allocation.
-
-        A single memory allocation will be broken into one or more sub-allocations.
-        */
-        kSubAllocatedWithin = 3,
-    };
-
     struct MemoryBlock;
-    class MemoryBase;
     class MemoryAllocator;
-
-    /** \struct MemoryAllocationInfo
-    Additional information about the memory allocation.
-    */
-    struct MemoryAllocationInfo {
-        /** \brief Allocated size, in bytes, of the memory allocation.
-        Must be non-zero. SizeInBytes is always a multiple of the alignment.
-        */
-        uint64_t SizeInBytes;
-
-        /** \brief Allocated alignment, in bytes, of the memory allocation.
-
-        Must be non-zero.
-        */
-        uint64_t Alignment;
-    };
 
     /** \brief Represents a location and range in memory.
 
@@ -98,7 +52,7 @@ namespace gpgmm {
         @param mappedPointer A pointer to uint8_t which is mapped by the allocation.
         */
         MemoryAllocation(MemoryAllocator* allocator,
-                         MemoryBase* memory,
+                         IMemoryBase* memory,
                          uint64_t offset,
                          AllocationMethod method,
                          MemoryBlock* block,
@@ -116,7 +70,7 @@ namespace gpgmm {
         @param mappedPointer A pointer to uint8_t which is mapped by the allocation.
         */
         MemoryAllocation(MemoryAllocator* allocator,
-                         MemoryBase* memory,
+                         IMemoryBase* memory,
                          uint64_t requestSize,
                          uint8_t* mappedPointer = nullptr);
 
@@ -137,7 +91,7 @@ namespace gpgmm {
 
         \return A pointer to the MemoryBase used by this allocation.
         */
-        MemoryBase* GetMemory() const;
+        IMemoryBase* GetMemory() const;
 
         /** \brief Get the byte addressable pointer mapped by this allocation.
 
@@ -195,7 +149,7 @@ namespace gpgmm {
         MemoryAllocator* mAllocator;
 
       private:
-        MemoryBase* mMemory;
+        IMemoryBase* mMemory;
         uint64_t mOffset;  // Offset always local to the memory.
         AllocationMethod mMethod;
         MemoryBlock* mBlock;

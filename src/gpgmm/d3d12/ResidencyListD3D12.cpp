@@ -18,6 +18,11 @@
 
 namespace gpgmm::d3d12 {
 
+    HRESULT CreateResidencyList(IResidencyList** ppResidencyList) {
+        *ppResidencyList = new ResidencyList();
+        return S_OK;
+    }
+
     ResidencyList::ResidencyList() {
         GPGMM_TRACE_EVENT_OBJECT_NEW(this);
     }
@@ -26,7 +31,7 @@ namespace gpgmm::d3d12 {
         GPGMM_TRACE_EVENT_OBJECT_DESTROY(this);
     }
 
-    HRESULT ResidencyList::Add(Heap* pHeap) {
+    HRESULT ResidencyList::Add(IHeap* pHeap) {
         if (pHeap == nullptr) {
             return E_INVALIDARG;
         }
@@ -50,6 +55,18 @@ namespace gpgmm::d3d12 {
 
     const char* ResidencyList::GetTypename() const {
         return "ResidencyList";
+    }
+
+    HRESULT STDMETHODCALLTYPE ResidencyList::QueryInterface(REFIID riid, void** ppvObject) {
+        return IUnknownImpl::QueryInterface(riid, ppvObject);
+    }
+
+    ULONG STDMETHODCALLTYPE ResidencyList::AddRef() {
+        return IUnknownImpl::AddRef();
+    }
+
+    ULONG STDMETHODCALLTYPE ResidencyList::Release() {
+        return IUnknownImpl::Release();
     }
 
 }  // namespace gpgmm::d3d12
