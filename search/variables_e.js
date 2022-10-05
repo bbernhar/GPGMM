@@ -1,15 +1,9 @@
 var searchData=
 [
-  ['pageable_0',['Pageable',['../structgpgmm_1_1d3d12_1_1_h_e_a_p___d_e_s_c.html#a305f79b50a18071f33ab41acac911477',1,'gpgmm::d3d12::HEAP_DESC']]],
-  ['path_1',['path',['../struct_trace_file.html#af31c4705878768456d2519d7aa4470f5',1,'TraceFile']]],
-  ['peakusage_2',['PeakUsage',['../struct_capture_replay_memory_stats.html#a8b3e9ff58d4db82928050ea8b0b9d37c',1,'CaptureReplayMemoryStats']]],
-  ['physicaldevice_3',['physicalDevice',['../structgpgmm_1_1vk_1_1_gp_create_allocator_info.html#a1df1001b59a3a4d322d2f3fc8cf6ccac',1,'gpgmm::vk::GpCreateAllocatorInfo']]],
-  ['pleft_4',['pLeft',['../structgpgmm_1_1_buddy_block_allocator_1_1_buddy_block_1_1_split_link.html#ad876112812f84b6d8aba69006c060e0c',1,'gpgmm::BuddyBlockAllocator::BuddyBlock::SplitLink']]],
-  ['pnext_5',['pNext',['../structgpgmm_1_1_buddy_block_allocator_1_1_buddy_block_1_1_free_links.html#a9e3f26392454de22e5dc3fbff042d9a5',1,'gpgmm::BuddyBlockAllocator::BuddyBlock::FreeLinks']]],
-  ['poolalgorithm_6',['PoolAlgorithm',['../structgpgmm_1_1d3d12_1_1_a_l_l_o_c_a_t_o_r___d_e_s_c.html#a3ee6242ed4122b527e73a2bec2539c7c',1,'gpgmm::d3d12::ALLOCATOR_DESC']]],
-  ['pprev_7',['pPrev',['../structgpgmm_1_1_buddy_block_allocator_1_1_buddy_block_1_1_free_links.html#ade8510d65a228eb34e90250de896be4b',1,'gpgmm::BuddyBlockAllocator::BuddyBlock::FreeLinks']]],
-  ['preferredresourceheapsize_8',['PreferredResourceHeapSize',['../structgpgmm_1_1d3d12_1_1_a_l_l_o_c_a_t_o_r___d_e_s_c.html#a9ffd07b861a66980125321249fdf23c5',1,'gpgmm::d3d12::ALLOCATOR_DESC']]],
-  ['prefetchedmemorymisses_9',['PrefetchedMemoryMisses',['../structgpgmm_1_1_memory_allocator_info.html#a72c067d8e6c578976152bb7aeb292c97',1,'gpgmm::MemoryAllocatorInfo']]],
-  ['prefetchedmemorymisseseliminated_10',['PrefetchedMemoryMissesEliminated',['../structgpgmm_1_1_memory_allocator_info.html#ab2d5625cffc43b7e91fda532009dc09e',1,'gpgmm::MemoryAllocatorInfo']]],
-  ['pvulkanfunctions_11',['pVulkanFunctions',['../structgpgmm_1_1vk_1_1_gp_create_allocator_info.html#a54e197f08b9e7a0cb044f3cb4947731b',1,'gpgmm::vk::GpCreateAllocatorInfo']]]
+  ['recordoptions_0',['RecordOptions',['../structgpgmm_1_1d3d12_1_1_r_e_s_i_d_e_n_c_y___d_e_s_c.html#a315f4eb31901ec275f927904ec8c58f2',1,'gpgmm::d3d12::RESIDENCY_DESC::RecordOptions()'],['../structgpgmm_1_1d3d12_1_1_a_l_l_o_c_a_t_o_r___d_e_s_c.html#a3a83aa65ac3cb38e5ed6d94f6df12de2',1,'gpgmm::d3d12::ALLOCATOR_DESC::RecordOptions()']]],
+  ['requiredpropertyflags_1',['requiredPropertyFlags',['../structgpgmm_1_1vk_1_1_gp_resource_allocation_create_info.html#ab9451843785b4203a40d23cea9fbeee9',1,'gpgmm::vk::GpResourceAllocationCreateInfo']]],
+  ['requireresourceheappadding_2',['RequireResourceHeapPadding',['../structgpgmm_1_1d3d12_1_1_a_l_l_o_c_a_t_i_o_n___d_e_s_c.html#aed41cef6134f5552d5581f75d526683c',1,'gpgmm::d3d12::ALLOCATION_DESC']]],
+  ['residencylists_3',['ResidencyLists',['../structgpgmm_1_1d3d12_1_1_e_x_e_c_u_t_e___c_o_m_m_a_n_d___l_i_s_t_s___d_e_s_c.html#aa08128a7352219a960579cdf512f3401',1,'gpgmm::d3d12::EXECUTE_COMMAND_LISTS_DESC']]],
+  ['resourcedescriptor_4',['resourceDescriptor',['../structgpgmm_1_1d3d12_1_1_c_r_e_a_t_e___r_e_s_o_u_r_c_e___d_e_s_c.html#a5be4f11fc109370ade0000671302ef08',1,'gpgmm::d3d12::CREATE_RESOURCE_DESC']]],
+  ['resourceheaptier_5',['ResourceHeapTier',['../structgpgmm_1_1d3d12_1_1_a_l_l_o_c_a_t_o_r___d_e_s_c.html#ae0c7b503a3e988ac74abb235514b53af',1,'gpgmm::d3d12::ALLOCATOR_DESC']]]
 ];

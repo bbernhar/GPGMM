@@ -1,8 +1,4 @@
 var searchData=
 [
-  ['usedblockcount_0',['UsedBlockCount',['../structgpgmm_1_1_memory_allocator_info.html#afd06e9f1ba23dff9b1aaeb662a5febc0',1,'gpgmm::MemoryAllocatorInfo']]],
-  ['usedblockusage_1',['UsedBlockUsage',['../structgpgmm_1_1_memory_allocator_info.html#aa5974ff23bcde1201ddecf7172de9d20',1,'gpgmm::MemoryAllocatorInfo']]],
-  ['usedetailedtimingevents_2',['UseDetailedTimingEvents',['../structgpgmm_1_1d3d12_1_1_a_l_l_o_c_a_t_o_r___r_e_c_o_r_d___o_p_t_i_o_n_s.html#a8407f808d092f3e62ba522900fbbe62a',1,'gpgmm::d3d12::ALLOCATOR_RECORD_OPTIONS']]],
-  ['usedmemorycount_3',['UsedMemoryCount',['../structgpgmm_1_1_memory_allocator_info.html#a73f9b120dda3cd970fd0d39cf74f8503',1,'gpgmm::MemoryAllocatorInfo']]],
-  ['usedmemoryusage_4',['UsedMemoryUsage',['../structgpgmm_1_1_memory_allocator_info.html#aa0594e53ecb5584efea2da8ee5bcd228',1,'gpgmm::MemoryAllocatorInfo']]]
+  ['vulkanapiversion_0',['vulkanApiVersion',['../structgpgmm_1_1vk_1_1_gp_allocator_create_info.html#aad966715473066760a61bc34f1b8ad72',1,'gpgmm::vk::GpAllocatorCreateInfo']]]
 ];
