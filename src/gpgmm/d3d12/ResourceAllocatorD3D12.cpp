@@ -275,6 +275,18 @@ namespace gpgmm::d3d12 {
             return S_OK;
         }
 
+        bool IsCPUVisible(D3D12_HEAP_TYPE heapType) {
+            switch (heapType) {
+                case D3D12_HEAP_TYPE_UPLOAD:
+                case D3D12_HEAP_TYPE_READBACK:
+                    return true;
+                case D3D12_HEAP_TYPE_DEFAULT:
+                    return false;
+                default:
+                    UNREACHABLE();
+            }
+        }
+
         // RAII wrapper to lock/unlock heap from the residency cache.
         class ScopedResidencyLock final {
           public:
@@ -963,6 +975,13 @@ namespace gpgmm::d3d12 {
             isAlwaysCommitted = true;
         }
 
+        const bool isAlwaysMapped = allocationDescriptor.Flags & ALLOCATION_FLAG_ALWAYS_MAPPED;
+        if (isAlwaysMapped && !IsCPUVisible(heapType)) {
+            ErrorLog() << "Unable to persistently map resource due to incompatible memory type ("
+                       << std::to_string(heapType) + ").";
+            return E_INVALIDARG;
+        }
+
         bool neverSubAllocate =
             allocationDescriptor.Flags & ALLOCATION_FLAG_NEVER_SUBALLOCATE_MEMORY;
 
@@ -1082,9 +1101,14 @@ namespace gpgmm::d3d12 {
                     allocationDesc.OffsetFromResource = subAllocation.GetOffset();
                     allocationDesc.DebugName = allocationDescriptor.DebugName;
 
-                    *ppResourceAllocationOut = new ResourceAllocation(
+                    if (isAlwaysMapped) {
+                        allocationDesc.Flags |= RESOURCE_ALLOCATION_FLAG_MAPPED;
+                    }
+
+                    ReturnIfFailed(ResourceAllocation::CreateResourceAllocation(
                         allocationDesc, mResidencyManager.Get(), subAllocation.GetAllocator(),
-                        resourceHeap, subAllocation.GetBlock(), std::move(committedResource));
+                        resourceHeap, subAllocation.GetBlock(), std::move(committedResource),
+                        ppResourceAllocationOut));
 
                     return S_OK;
                 }));
@@ -1121,9 +1145,14 @@ namespace gpgmm::d3d12 {
                     allocationDesc.OffsetFromResource = 0;
                     allocationDesc.DebugName = allocationDescriptor.DebugName;
 
-                    *ppResourceAllocationOut = new ResourceAllocation(
+                    if (isAlwaysMapped) {
+                        allocationDesc.Flags |= RESOURCE_ALLOCATION_FLAG_MAPPED;
+                    }
+
+                    ReturnIfFailed(ResourceAllocation::CreateResourceAllocation(
                         allocationDesc, mResidencyManager.Get(), subAllocation.GetAllocator(),
-                        resourceHeap, subAllocation.GetBlock(), std::move(placedResource));
+                        resourceHeap, subAllocation.GetBlock(), std::move(placedResource),
+                        ppResourceAllocationOut));
 
                     return S_OK;
                 }));
@@ -1161,9 +1190,14 @@ namespace gpgmm::d3d12 {
                     allocationDesc.OffsetFromResource = 0;
                     allocationDesc.DebugName = allocationDescriptor.DebugName;
 
-                    *ppResourceAllocationOut = new ResourceAllocation(
+                    if (isAlwaysMapped) {
+                        allocationDesc.Flags |= RESOURCE_ALLOCATION_FLAG_MAPPED;
+                    }
+
+                    ReturnIfFailed(ResourceAllocation::CreateResourceAllocation(
                         allocationDesc, mResidencyManager.Get(), allocation.GetAllocator(),
-                        resourceHeap, allocation.GetBlock(), std::move(placedResource));
+                        resourceHeap, allocation.GetBlock(), std::move(placedResource),
+                        ppResourceAllocationOut));
 
                     return S_OK;
                 }));
@@ -1211,9 +1245,13 @@ namespace gpgmm::d3d12 {
         allocationDesc.OffsetFromResource = 0;
         allocationDesc.DebugName = allocationDescriptor.DebugName;
 
-        *ppResourceAllocationOut =
-            new ResourceAllocation(allocationDesc, mResidencyManager.Get(), this, resourceHeap,
-                                   nullptr, std::move(committedResource));
+        if (isAlwaysMapped) {
+            allocationDesc.Flags |= RESOURCE_ALLOCATION_FLAG_MAPPED;
+        }
+
+        ReturnIfFailed(ResourceAllocation::CreateResourceAllocation(
+            allocationDesc, mResidencyManager.Get(), this, resourceHeap, nullptr,
+            std::move(committedResource), ppResourceAllocationOut));
 
         return S_OK;
     }

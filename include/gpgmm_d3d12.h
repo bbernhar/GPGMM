@@ -588,6 +588,24 @@ namespace gpgmm::d3d12 {
     GPGMM_EXPORT HRESULT CreateResidencyManager(const RESIDENCY_DESC& descriptor,
                                                 IResidencyManager** ppResidencyManagerOut);
 
+    /** \enum RESOURCE_ALLOCATION_FLAGS
+    Specify creation options for resource allocation.
+    */
+    enum RESOURCE_ALLOCATION_FLAGS {
+
+        /** \brief Disables all flags.
+         */
+        RESOURCE_ALLOCATION_FLAG_NONE = 0x0,
+
+        /** \brief Maps the resource allocation for access from the CPU.
+
+        Mapped data is accessed by RESOURCE_ALLOCATION_INFO::MappedData.
+        */
+        RESOURCE_ALLOCATION_FLAG_MAPPED = 0x1,
+    };
+
+    DEFINE_ENUM_FLAG_OPERATORS(RESOURCE_ALLOCATION_FLAGS)
+
     /** \struct RESOURCE_ALLOCATION_DESC
     Describes a resource allocation.
     */
@@ -602,6 +620,10 @@ namespace gpgmm::d3d12 {
         /** \brief Offset, in bytes, of the resource in the heap.
          */
         uint64_t HeapOffset;
+
+        /** \brief Specifies resource allocation options.
+         */
+        RESOURCE_ALLOCATION_FLAGS Flags;
 
         /** \brief Offset, in bytes, of the allocation, from the start of the
         resource.
@@ -638,6 +660,12 @@ namespace gpgmm::d3d12 {
         /** \brief Method used to allocate memory for the resource.
          */
         AllocationMethod Method;
+
+        /** \brief Pointer to the mapped resource data.
+
+        Only valid with flag ALLOCATION_FLAG_ALWAYS_MAPPED specified.
+         */
+        void* pMappedData;
     };
 
     /** \brief ResourceAllocation is MemoryAllocation that contains a ID3D12Resource.
@@ -1059,6 +1087,16 @@ namespace gpgmm::d3d12 {
         Mostly used for debug and testing when certain allocation methods unexpectedly fail.
         */
         ALLOCATION_FLAG_NEVER_FALLBACK = 0x40,
+
+        /** \brief Creates the resource allocation mapped or always accessible to the CPU.
+
+        Using ALLOCATION_FLAG_ALWAYS_MAPPED is equivelent to calling ResourceAllocation::Map(0, ...)
+        after ResourceAllocator::CreateResource. Always mapping the resource requires memory to be
+        CPU-accessible or not specify a HeapType of D3D12_HEAP_TYPE_DEFAULT. If the resource
+        allocation was created with this flag, you do not need to call ResourceAllocation::Unmap.
+        A mapped resource allocation is always resident and never can be evicted once created.
+        */
+        ALLOCATION_FLAG_ALWAYS_MAPPED = 0x80,
     };
 
     DEFINE_ENUM_FLAG_OPERATORS(ALLOCATION_FLAGS)

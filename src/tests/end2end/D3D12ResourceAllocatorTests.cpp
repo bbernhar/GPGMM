@@ -1197,6 +1197,98 @@ TEST_F(D3D12ResourceAllocatorTests, CreateBufferWithinMany) {
     EXPECT_EQ(resourceAllocator->GetStats().UsedBlockCount, 0u);
     EXPECT_EQ(resourceAllocator->GetStats().UsedMemoryCount, 0u);
 }
+TEST_F(D3D12ResourceAllocatorTests, CreateBufferAlwaysMapped) {
+    ComPtr<IResourceAllocator> resourceAllocator;
+    ASSERT_SUCCEEDED(
+        CreateResourceAllocator(CreateBasicAllocatorDesc(), &resourceAllocator, nullptr));
+
+    ALLOCATION_DESC allocationDesc = {};
+    allocationDesc.Flags |= ALLOCATION_FLAG_ALWAYS_MAPPED;
+
+    {
+        ComPtr<IResourceAllocation> persistentBuffer;
+        ASSERT_SUCCEEDED(resourceAllocator->CreateResource(
+            allocationDesc, CreateBasicBufferDesc(kBufferOf4MBAllocationSize),
+            D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, &persistentBuffer));
+
+        EXPECT_NE(persistentBuffer->GetInfo().pMappedData, nullptr);
+        ASSERT_FAILED(persistentBuffer->Map(0, nullptr, nullptr));
+
+        // Verify Unmap + Map doesn't change anything.
+        persistentBuffer->Unmap();
+        ASSERT_FAILED(persistentBuffer->Map(0, nullptr, nullptr));
+    }
+
+    // Check two sub-allocations within the resource but only one persistently mapped.
+    {
+        ALLOCATION_DESC subAllocationWithinDesc = allocationDesc;
+        subAllocationWithinDesc.Flags |= ALLOCATION_FLAG_ALLOW_SUBALLOCATE_WITHIN_RESOURCE;
+
+        ComPtr<IResourceAllocation> persistentBufferA;
+        ASSERT_SUCCEEDED(resourceAllocator->CreateResource(
+            subAllocationWithinDesc, CreateBasicBufferDesc(1), D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr, &persistentBufferA));
+
+        EXPECT_NE(persistentBufferA->GetInfo().pMappedData, nullptr);
+
+        subAllocationWithinDesc.Flags ^= ALLOCATION_FLAG_ALWAYS_MAPPED;
+
+        ComPtr<IResourceAllocation> nonPersistentBufferB;
+        ASSERT_SUCCEEDED(resourceAllocator->CreateResource(
+            subAllocationWithinDesc, CreateBasicBufferDesc(1), D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr, &nonPersistentBufferB));
+
+        EXPECT_EQ(nonPersistentBufferB->GetInfo().pMappedData, nullptr);
+
+        // Verify both are sub-allocated within.
+        ASSERT_EQ(persistentBufferA->GetInfo().Method,
+                  gpgmm::AllocationMethod::kSubAllocatedWithin);
+        ASSERT_EQ(persistentBufferA->GetInfo().Method, nonPersistentBufferB->GetInfo().Method);
+
+        // Fill buffer A with value 0xAA.
+        void* mappedBufferAData = persistentBufferA->GetInfo().pMappedData;
+        std::vector<uint8_t> dataAA(
+            static_cast<const size_t>(persistentBufferA->GetInfo().SizeInBytes), 0xAA);
+        memcpy(mappedBufferAData, dataAA.data(), dataAA.size());
+
+        // Verify buffer A is filled with 0xAA.
+        uint8_t* mappedByte = static_cast<uint8_t*>(mappedBufferAData);
+        for (uint32_t i = 0; i < persistentBufferA->GetInfo().SizeInBytes; i++, mappedByte++) {
+            EXPECT_EQ(*mappedByte, 0xAA);
+        }
+
+        // Fill buffer B with value 0xBB.
+        void* mappedBufferBData = nullptr;
+        ASSERT_SUCCEEDED(nonPersistentBufferB->Map(0, nullptr, &mappedBufferBData));
+        std::vector<uint8_t> dataBB(
+            static_cast<const size_t>(nonPersistentBufferB->GetInfo().SizeInBytes), 0xBB);
+        memcpy(mappedBufferBData, dataBB.data(), dataBB.size());
+
+        // Verify buffer B is filled with 0xBB.
+        mappedByte = static_cast<uint8_t*>(mappedBufferBData);
+        for (uint32_t i = 0; i < nonPersistentBufferB->GetInfo().SizeInBytes; i++, mappedByte++) {
+            EXPECT_EQ(*mappedByte, 0xBB);
+        }
+
+        nonPersistentBufferB->Unmap();
+        ASSERT_SUCCEEDED(nonPersistentBufferB->Map(0, nullptr, nullptr));
+
+        // Verify buffer A is still filled with 0xAA.
+        mappedByte = static_cast<uint8_t*>(mappedBufferAData);
+        for (uint32_t i = 0; i < persistentBufferA->GetInfo().SizeInBytes; i++, mappedByte++) {
+            EXPECT_EQ(*mappedByte, 0xAA);
+        }
+
+        persistentBufferA->Unmap();
+        ASSERT_FAILED(persistentBufferA->Map(0, nullptr, nullptr));
+
+        // Verify buffer A is still filled with 0xAA.
+        mappedByte = static_cast<uint8_t*>(mappedBufferAData);
+        for (uint32_t i = 0; i < persistentBufferA->GetInfo().SizeInBytes; i++, mappedByte++) {
+            EXPECT_EQ(*mappedByte, 0xAA);
+        }
+    }
+}
 
 TEST_F(D3D12ResourceAllocatorTests, CreateBufferNeverSubAllocated) {
     ComPtr<IResourceAllocator> resourceAllocator;

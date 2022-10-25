@@ -41,6 +41,31 @@ namespace gpgmm::d3d12 {
 
     }  // namespace
 
+    // static
+    HRESULT ResourceAllocation::CreateResourceAllocation(
+        const RESOURCE_ALLOCATION_DESC& desc,
+        ResidencyManager* residencyManager,
+        MemoryAllocator* allocator,
+        Heap* resourceHeap,
+        MemoryBlock* block,
+        ComPtr<ID3D12Resource> resource,
+        IResourceAllocation** ppResourceAllocationOut) {
+        std::unique_ptr<ResourceAllocation> allocation(new ResourceAllocation(
+            desc, residencyManager, allocator, resourceHeap, block, std::move(resource)));
+
+        if (desc.Flags & RESOURCE_ALLOCATION_FLAG_MAPPED) {
+            void* mappedData = nullptr;
+            ReturnIfFailed(allocation->Map(0, nullptr, &mappedData));
+            allocation->mMappedData = mappedData;
+        }
+
+        if (ppResourceAllocationOut != nullptr) {
+            *ppResourceAllocationOut = allocation.release();
+        }
+
+        return S_OK;
+    }
+
     ResourceAllocation::ResourceAllocation(const RESOURCE_ALLOCATION_DESC& desc,
                                            ResidencyManager* residencyManager,
                                            MemoryAllocator* allocator,
@@ -75,6 +100,11 @@ namespace gpgmm::d3d12 {
     HRESULT ResourceAllocation::Map(uint32_t subresource,
                                     const D3D12_RANGE* pReadRange,
                                     void** ppDataOut) {
+        // Re-mapping a persistently mapped resource is not allowed.
+        if (mMappedData != nullptr) {
+            return E_FAIL;
+        }
+
         // Allocation coordinates relative to the resource cannot be used when specifying
         // subresource-relative coordinates.
         if (subresource > 0 && GetMethod() == AllocationMethod::kSubAllocatedWithin) {
@@ -107,6 +137,11 @@ namespace gpgmm::d3d12 {
     }
 
     void ResourceAllocation::Unmap(uint32_t subresource, const D3D12_RANGE* pWrittenRange) {
+        // No need to Unmap a persistently mapped resource.
+        if (mMappedData != nullptr) {
+            return;
+        }
+
         // Allocation coordinates relative to the resource cannot be used when specifying
         // subresource-relative coordinates.
         ASSERT(subresource == 0 || GetMethod() != AllocationMethod::kSubAllocatedWithin);
@@ -137,7 +172,7 @@ namespace gpgmm::d3d12 {
     }
 
     RESOURCE_ALLOCATION_INFO ResourceAllocation::GetInfo() const {
-        return {GetSize(), GetAlignment(), GetMethod()};
+        return {GetSize(), GetAlignment(), GetMethod(), mMappedData};
     }
 
     const char* ResourceAllocation::GetTypename() const {

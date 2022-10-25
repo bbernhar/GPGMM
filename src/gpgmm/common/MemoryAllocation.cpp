@@ -27,7 +27,7 @@ namespace gpgmm {
           mOffset(kInvalidOffset),
           mMethod(AllocationMethod::kUndefined),
           mBlock(nullptr),
-          mMappedPointer(nullptr) {
+          mMappedData(nullptr) {
     }
 
     MemoryAllocation::MemoryAllocation(MemoryAllocator* allocator,
@@ -36,7 +36,7 @@ namespace gpgmm {
                                        AllocationMethod method,
                                        MemoryBlock* block,
                                        uint64_t requestSize,
-                                       uint8_t* mappedPointer)
+                                       void* mappedData)
         : mAllocator(allocator),
           mMemory(memory),
           mOffset(offset),
@@ -45,13 +45,13 @@ namespace gpgmm {
 #ifdef GPGMM_ENABLE_MEMORY_ALIGN_CHECKS
           mRequestSize(requestSize),
 #endif
-          mMappedPointer(mappedPointer) {
+          mMappedData(mappedData) {
     }
 
     MemoryAllocation::MemoryAllocation(MemoryAllocator* allocator,
                                        MemoryBase* memory,
                                        uint64_t requestSize,
-                                       uint8_t* mappedPointer)
+                                       void* mappedData)
         : mAllocator(allocator),
           mMemory(memory),
           mOffset(0),
@@ -60,7 +60,7 @@ namespace gpgmm {
 #ifdef GPGMM_ENABLE_MEMORY_ALIGN_CHECKS
           mRequestSize(requestSize),
 #endif
-          mMappedPointer(mappedPointer) {
+          mMappedData(mappedData) {
     }
 
     bool MemoryAllocation::operator==(const MemoryAllocation& other) const {
@@ -80,9 +80,6 @@ namespace gpgmm {
         return mMemory;
     }
 
-    uint8_t* MemoryAllocation::GetMappedPointer() const {
-        return mMappedPointer;
-    }
 
     MemoryAllocator* MemoryAllocation::GetAllocator() const {
         return mAllocator;

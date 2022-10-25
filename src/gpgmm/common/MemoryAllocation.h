@@ -44,13 +44,13 @@ namespace gpgmm {
                          AllocationMethod method,
                          MemoryBlock* block,
                          uint64_t requestSize,
-                         uint8_t* mappedPointer = nullptr);
+                         void* mappedData = nullptr);
 
         // Constructs a "standalone" memory allocation.
         MemoryAllocation(MemoryAllocator* allocator,
                          MemoryBase* memory,
                          uint64_t requestSize,
-                         uint8_t* mappedPointer = nullptr);
+                         void* mappedData = nullptr);
 
         virtual ~MemoryAllocation() = default;
 
@@ -61,7 +61,6 @@ namespace gpgmm {
 
         MemoryAllocationInfo GetInfo() const;
         MemoryBase* GetMemory() const;
-        uint8_t* GetMappedPointer() const;
         MemoryAllocator* GetAllocator() const;
         uint64_t GetSize() const;
         uint64_t GetRequestSize() const;
@@ -74,6 +73,7 @@ namespace gpgmm {
         friend class MemoryAllocator;
 
         MemoryAllocator* mAllocator;
+        void* mMappedData;
 
       private:
         MemoryBase* mMemory;
@@ -82,7 +82,6 @@ namespace gpgmm {
         MemoryBlock* mBlock;
 
         uint64_t mRequestSize;
-        uint8_t* mMappedPointer;
     };
 }  // namespace gpgmm
 

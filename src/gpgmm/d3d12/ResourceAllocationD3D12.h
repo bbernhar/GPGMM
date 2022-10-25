@@ -56,6 +56,14 @@ namespace gpgmm::d3d12 {
       private:
         friend ResourceAllocator;
 
+        static HRESULT CreateResourceAllocation(const RESOURCE_ALLOCATION_DESC& desc,
+                                                ResidencyManager* residencyManager,
+                                                MemoryAllocator* allocator,
+                                                Heap* resourceHeap,
+                                                MemoryBlock* block,
+                                                ComPtr<ID3D12Resource> resource,
+                                                IResourceAllocation** ppResourceAllocationOut);
+
         ResourceAllocation(const RESOURCE_ALLOCATION_DESC& desc,
                            ResidencyManager* residencyManager,
                            MemoryAllocator* allocator,
