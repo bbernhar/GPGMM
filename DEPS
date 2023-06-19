@@ -93,7 +93,7 @@ deps = {
     'condition': 'gpgmm_standalone',
   },
   'third_party/vulkan-deps': {
-    'url': '{chromium_git}/vulkan-deps@45984dd714bb02f37d9105619ccaf209d0ac397c',
+    'url': '{chromium_git}/vulkan-deps@4aa38765aadb28b9b1e2b01c3883ec7c7f48033c',
     'condition': 'gpgmm_standalone',
   },
   # Dependency of //testing
