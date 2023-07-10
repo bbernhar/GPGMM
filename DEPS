@@ -85,7 +85,7 @@ deps = {
 
   # Testing, GTest and GMock
   'testing': {
-    'url': '{chromium_git}/chromium/src/testing@790b2291a5d5f599ddf0a61b74a7e987c81b5a44',
+    'url': '{chromium_git}/chromium/src/testing@02e05b7e4a13423816680664ed4643f487dbcfdc',
     'condition': 'gpgmm_standalone',
   },
   'third_party/googletest': {
