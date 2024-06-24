@@ -89,7 +89,7 @@ deps = {
     'condition': 'gpgmm_standalone',
   },
   'third_party/googletest': {
-    'url': '{chromium_git}/external/github.com/google/googletest@63907e1bfe6f78806b17d094daf2198ee27aad62',
+    'url': '{chromium_git}/external/github.com/google/googletest@1d17ea141d2c11b8917d2c7d029f1c4e2b9769b2',
     'condition': 'gpgmm_standalone',
   },
   'third_party/vulkan-deps': {
