@@ -65,7 +65,7 @@ deps = {
     'condition': 'gpgmm_standalone',
   },
   'buildtools/third_party/libc++abi/trunk': {
-    'url': '{chromium_git}/external/github.com/llvm/llvm-project/libcxxabi.git@5c3e02e92ae8bbc1bf1001bd9ef0d76e044ddb86',
+    'url': '{chromium_git}/external/github.com/llvm/llvm-project/libcxxabi.git@9a1d90c3b412d5ebeb97a6e33d98e1d0dd923221',
     'condition': 'gpgmm_standalone',
   },
   'tools/clang': {
