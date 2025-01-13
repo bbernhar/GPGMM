@@ -23,7 +23,7 @@ vars = {
 deps = {
   # Dependencies required to use GN/Clang in standalone
   'build': {
-    'url': '{chromium_git}/chromium/src/build@f87b9ff92eb2b16cd9b0e8998aebf8ec06433181',
+    'url': '{chromium_git}/chromium/src/build@bbdae0b4093c2fa8cd6a4d323d0a118789a6aeb8',
     'condition': 'gpgmm_standalone',
   },
   'buildtools': {
