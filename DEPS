@@ -111,7 +111,7 @@ deps = {
     'condition': 'gpgmm_standalone',
   },
   'third_party/google_benchmark/src': {
-    'url': '{chromium_git}/external/github.com/google/benchmark.git@e991355c02b93fe17713efe04cbc2e278e00fdbd',
+    'url': '{chromium_git}/external/github.com/google/benchmark.git@d6536acfe80d05d2b9e63e4dc786dd1dc9f0b960',
     'condition': 'gpgmm_standalone',
   },
 }
