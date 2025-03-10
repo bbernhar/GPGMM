@@ -69,7 +69,7 @@ deps = {
     'condition': 'gpgmm_standalone',
   },
   'tools/clang': {
-    'url': '{chromium_git}/chromium/src/tools/clang@209fff0a4f6b87435669c94b4aa6ed4da73bdbf5',
+    'url': '{chromium_git}/chromium/src/tools/clang@0ea80f8705f4eb3ebbcee0a6bc9ffd28e0c1ec85',
     'condition': 'gpgmm_standalone',
   },
   'tools/clang/dsymutil': {
